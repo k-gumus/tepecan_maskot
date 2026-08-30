@@ -1,0 +1,5 @@
+sounddevice
+webrtcvad
+requests
+gpiozero
+anthropic     # yalnızca TEPECAN_LLM_BACKEND=claude kullanacaksan
