@@ -5,9 +5,11 @@ Tepecan — maskotun içindeki sesli asistan.
 Raspberry Pi Zero 2 W üzerinde çalışır. Pi'nin tek işi mikrofonu okumak ve
 hoparlöre yazmak; ses->metin, LLM ve metin->ses beyin sunucusunda.
 
-    buton -> kayıt (sen susunca biter) -> /stt -> Ollama -> cümle cümle /tts -> hoparlör
+    "Hey Tepecan" (ya da buton)
+        -> kayıt (sen susunca biter) -> /stt -> Ollama -> cümle cümle /tts -> hoparlör
 
-Ayarların hepsi ortam değişkeninden okunur, hepsinin varsayılanı vardır.
+Mikrofon tek bir sürekli akış olarak açılır; uyandırma kelimesi dedektörü ve
+kayıt aynı akıştan beslenir. Ayarların hepsi ortam değişkeninden okunur.
 """
 
 import json
@@ -20,6 +22,7 @@ import time
 import wave
 from io import BytesIO
 
+import numpy as np
 import requests
 import sounddevice as sd
 import webrtcvad
@@ -37,8 +40,16 @@ LLM_BACKEND = os.getenv("TEPECAN_LLM_BACKEND", "ollama")   # ollama | claude
 CLAUDE_MODEL = "claude-opus-5"
 
 BUTTON_PIN = int(os.getenv("TEPECAN_BUTTON_PIN", "17"))    # ReSpeaker HAT butonu
-MIC_RATE = 16000                 # STT ve VAD 16 kHz ister
-FRAME_MS = 30                    # webrtcvad 10/20/30 ms kabul eder
+WAKE_MODEL = os.getenv("TEPECAN_WAKE_MODEL",               # boş -> sadece buton
+                       os.path.expanduser("~/tepecan/hey_tepecan.onnx"))
+WAKE_THRESHOLD = float(os.getenv("TEPECAN_WAKE_THRESHOLD", "0.5"))
+WAKE_HITS = int(os.getenv("TEPECAN_WAKE_HITS", "2"))       # ardışık kaç blok eşiği aşmalı
+
+MIC_RATE = 16000                 # STT, VAD ve uyandırma modeli 16 kHz ister
+BLOCK = 1280                     # 80 ms — openWakeWord'ün beklediği pencere
+VAD_FRAME = 160                  # 10 ms — webrtcvad'in kabul ettiği en küçük pencere
+VAD_BYTES = VAD_FRAME * 2
+VOICED_FRAMES = 3                # 80 ms içinde en az 30 ms konuşma varsa "konuşuyor"
 SILENCE_MS = 800                 # bu kadar sessizlikte kayıt biter
 MAX_RECORD_S = 15                # güvenlik sınırı
 MEMORY_TURNS = 6                 # kaç mesaj hatırlansın (küçük modelde artırma)
@@ -66,31 +77,93 @@ def set_state(state):
 
 
 # --------------------------------------------------------------------------
-# 1) Mikrofon: konuşma bitene kadar kaydet
+# 1) Mikrofon — tek sürekli akış
 # --------------------------------------------------------------------------
-def record_until_silence():
-    vad = webrtcvad.Vad(2)                    # 0 gevşek .. 3 agresif
-    frame_len = int(MIC_RATE * FRAME_MS / 1000)
-    silence_limit = SILENCE_MS // FRAME_MS
+vad = webrtcvad.Vad(2)           # 0 gevşek .. 3 agresif
 
+
+def speaking(block):
+    """80 ms'lik bloğu 10 ms'lik parçalara bölüp VAD'e sorar."""
+    voiced = sum(vad.is_speech(block[i:i + VAD_BYTES], MIC_RATE)
+                 for i in range(0, len(block), VAD_BYTES))
+    return voiced >= VOICED_FRAMES
+
+
+def drain(mic):
+    """Biriken sesi at. Tepecan kendi konuşmasını duymasın diye şart."""
+    while mic.read_available >= BLOCK:
+        mic.read(BLOCK)
+
+
+class WakeWord:
+    """openWakeWord sarmalayıcısı. Model yoksa sessizce devre dışı kalır."""
+
+    def __init__(self, model_path, threshold, needed_hits):
+        self.model, self.threshold, self.needed = None, threshold, needed_hits
+        self.hits = 0
+        if not model_path or not os.path.exists(model_path):
+            print(f"Uyandırma modeli yok ({model_path}); sadece buton çalışır.")
+            return
+        try:
+            from openwakeword.model import Model
+            self.model = Model(wakeword_models=[model_path], inference_framework="onnx")
+            print(f"Uyandırma kelimesi hazır: {os.path.basename(model_path)} "
+                  f"(eşik {threshold})")
+        except Exception as exc:
+            print(f"Uyandırma kelimesi yüklenemedi ({exc}); sadece buton çalışır.")
+
+    @property
+    def enabled(self):
+        return self.model is not None
+
+    def reset(self):
+        self.hits = 0
+        if self.model is not None and hasattr(self.model, "reset"):
+            self.model.reset()
+
+    def hears(self, block):
+        if self.model is None:
+            return False
+        scores = self.model.predict(np.frombuffer(block, dtype=np.int16))
+        best = max(scores.values()) if scores else 0.0
+        self.hits = self.hits + 1 if best >= self.threshold else 0
+        if self.hits >= self.needed:
+            self.reset()
+            return True
+        return False
+
+
+def wait_for_trigger(mic, wake, button):
+    """Uyandırma kelimesi ya da butona basılana kadar bekler."""
+    wake.reset()
+    while True:
+        block, _ = mic.read(BLOCK)
+        block = bytes(block)
+        if button is not None and button.is_pressed:
+            while button.is_pressed:            # bırakılmasını bekle
+                time.sleep(0.02)
+            return "buton"
+        if wake.hears(block):
+            return "kelime"
+
+
+def record_until_silence(mic):
+    """Konuşma bitene kadar kaydeder, 16 kHz mono WAV baytları döndürür."""
+    silence_limit = SILENCE_MS // (BLOCK * 1000 // MIC_RATE)
     frames, silent, started = [], 0, False
     deadline = time.time() + MAX_RECORD_S
 
-    with sd.RawInputStream(samplerate=MIC_RATE, blocksize=frame_len,
-                           dtype="int16", channels=1) as stream:
-        while time.time() < deadline:
-            block, overflowed = stream.read(frame_len)
-            if overflowed:
-                continue
-            block = bytes(block)
-            frames.append(block)
+    while time.time() < deadline:
+        block, _ = mic.read(BLOCK)
+        block = bytes(block)
+        frames.append(block)
 
-            if vad.is_speech(block, MIC_RATE):
-                started, silent = True, 0
-            elif started:
-                silent += 1
-                if silent >= silence_limit:
-                    break
+        if speaking(block):
+            started, silent = True, 0
+        elif started:
+            silent += 1
+            if silent >= silence_limit:
+                break
 
     if not started:
         return None
@@ -217,22 +290,26 @@ def speaker_thread(q):
 
 
 # --------------------------------------------------------------------------
-# 6) Tetikleyici: omuzdaki butona bas (kart yoksa Enter)
+# 6) Buton — uyandırma kelimesi çalışsa da yedek olarak duruyor
 # --------------------------------------------------------------------------
-def make_trigger():
+def make_button():
     try:
         from gpiozero import Button
         button = Button(BUTTON_PIN, pull_up=True, bounce_time=0.05)
-        print(f"Buton GPIO{BUTTON_PIN}. Bas ve konuş.")
-        return button.wait_for_press
+        print(f"Buton GPIO{BUTTON_PIN}.")
+        return button
     except Exception as exc:
-        print(f"Buton yok ({exc}); Enter'a basarak konuş.")
-        return lambda: input()
+        print(f"Buton yok ({exc}).")
+        return None
 
 
 # --------------------------------------------------------------------------
 def main():
-    trigger = make_trigger()
+    button = make_button()
+    wake = WakeWord(WAKE_MODEL, WAKE_THRESHOLD, WAKE_HITS)
+    if button is None and not wake.enabled:
+        sys.exit("Ne buton ne uyandırma kelimesi var; tetikleyici olmadan çalışamam.")
+
     tts_queue = queue.Queue()
     threading.Thread(target=speaker_thread, args=(tts_queue,), daemon=True).start()
 
@@ -240,48 +317,61 @@ def main():
     print(f"Tepecan hazır. Beyin: {BRAIN} | LLM: {LLM_BACKEND} "
           f"({OLLAMA_MODEL if LLM_BACKEND == 'ollama' else CLAUDE_MODEL})")
 
-    while True:
-        set_state("bekliyor")
-        trigger()
+    with sd.RawInputStream(samplerate=MIC_RATE, blocksize=BLOCK,
+                           dtype="int16", channels=1) as mic:
+        while True:
+            set_state("bekliyor")
+            drain(mic)
+            how = wait_for_trigger(mic, wake, button)
 
-        set_state("dinliyor")
-        wav = record_until_silence()
-        if not wav:
-            continue
+            set_state("dinliyor")
+            print(f"({how} ile uyandı)")
+            wav = record_until_silence(mic)
+            if not wav:
+                continue
 
-        set_state("dusunuyor")
-        try:
-            question = transcribe(wav)
-        except Exception as exc:
-            print(f"STT hatası: {exc}")
-            tts_queue.put("Kusura bakma, seni duyamadım.")
-            continue
-        if not question:
-            continue
-        print(f"> {question}")
+            # Bundan sonrası mikrofonu gerektirmiyor. Kapatmak üç işi birden
+            # çözüyor: Tepecan kendi sesini duymuyor, ses kartından aynı anda
+            # hem giriş hem çıkış istenmiyor, ve tampon boşuna dolmuyor.
+            mic.stop()
+            try:
+                set_state("dusunuyor")
+                try:
+                    question = transcribe(wav)
+                except Exception as exc:
+                    print(f"STT hatası: {exc}")
+                    tts_queue.put("Kusura bakma, seni duyamadım.")
+                    tts_queue.join()
+                    continue
+                if not question:
+                    continue
+                print(f"> {question}")
 
-        if time.time() - last_turn > MEMORY_TIMEOUT_S:
-            history.clear()
-        last_turn = time.time()
+                if time.time() - last_turn > MEMORY_TIMEOUT_S:
+                    history.clear()
+                last_turn = time.time()
 
-        history.append({"role": "user", "content": question})
-        del history[:-MEMORY_TURNS]
+                history.append({"role": "user", "content": question})
+                del history[:-MEMORY_TURNS]
 
-        answer = ""
-        set_state("konusuyor")
-        try:
-            for sentence in sentences(stream_reply(history)):
-                print(f"< {sentence}")
-                answer += sentence + " "
-                tts_queue.put(sentence)
-        except Exception as exc:
-            print(f"LLM hatası: {exc}")
-            tts_queue.put("Şu an kafam çalışmıyor, birazdan tekrar dene.")
-            continue
+                answer = ""
+                set_state("konusuyor")
+                try:
+                    for sentence in sentences(stream_reply(history)):
+                        print(f"< {sentence}")
+                        answer += sentence + " "
+                        tts_queue.put(sentence)
+                except Exception as exc:
+                    print(f"LLM hatası: {exc}")
+                    tts_queue.put("Şu an kafam çalışmıyor, birazdan tekrar dene.")
+                    tts_queue.join()
+                    continue
 
-        tts_queue.join()
-        if answer.strip():
-            history.append({"role": "assistant", "content": answer.strip()})
+                tts_queue.join()
+                if answer.strip():
+                    history.append({"role": "assistant", "content": answer.strip()})
+            finally:
+                mic.start()
 
 
 if __name__ == "__main__":

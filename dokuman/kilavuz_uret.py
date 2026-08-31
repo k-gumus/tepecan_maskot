@@ -161,9 +161,10 @@ table(
      ["Model: Qwen3 4B",
       "Küçük modeller arasında çok dilli tarafı güçlü olanlardan; Türkçesi "
       "kullanılabilir. Gemma 3 4B ikinci aday, karşılaştırmaya değer."],
-     ["Uyandırma kelimesi değil, buton",
-      "Sol omuzdaki 7 rozeti butona dönüşüyor. Uyandırma kelimesi 512 MB'ı "
-      "zorlar ve gürültülü bir stantta yanlış tetiklenir."],
+     ["Uyandırma kelimesi + buton",
+      "\"Hey Tepecan\" ile butonsuz tetikleme (openWakeWord, yerel). Metin→ses "
+      "sunucuya taşındığı için Pi'de yer açıldı. Buton yedek olarak duruyor: "
+      "gürültülü stantta uyandırmayı kapatıp butona dönebilirsin."],
      ["Ollama + faster-whisper + Piper",
       "Üçü de ücretsiz ve yerel. Zincirin tamamı internetsiz çalışır, "
       "kullanım başına maliyet yoktur."]],
@@ -384,8 +385,10 @@ pip install --break-system-packages -r requirements-pi.txt
 python3 tepecan.py
 """)
 
-p("Butona bas, konuş, bırak. Kayıt sen susunca kendiliğinden biter. Terminalde "
-  "durumu ve konuşulan metni görürsün.")
+p("\"Hey Tepecan\" de ya da omuzdaki butona bas; kayıt sen susunca kendiliğinden "
+  "biter. Terminalde durumu ve konuşulan metni görürsün. Uyandırma kelimesi "
+  "modelini edinmek için <font face='Mono'>yazilim/maskot/UYANDIRMA.md</font> "
+  "dosyasına bak — model dosyası yoksa program yine çalışır, sadece buton tetikler.")
 
 h2("Açılışta otomatik başlasın")
 p("<font face='Mono'>/etc/systemd/system/tepecan.service</font> dosyasını oluştur:")
@@ -421,6 +424,9 @@ table(
      ["TEPECAN_MODEL", "qwen3:4b", "Ollama'da kullanılacak model"],
      ["TEPECAN_LLM_BACKEND", "ollama", "ollama veya claude"],
      ["TEPECAN_BUTTON_PIN", "17", "Butonun bağlı olduğu GPIO"],
+     ["TEPECAN_WAKE_MODEL", "~/tepecan/hey_tepecan.onnx", "Uyandırma modeli; yoksa sadece buton"],
+     ["TEPECAN_WAKE_THRESHOLD", "0.5", "Uyandırma güven eşiği (yükselt = az yanlış tetikleme)"],
+     ["TEPECAN_WAKE_HITS", "2", "Ardışık kaç blok eşiği aşmalı (gürültüde 3 yap)"],
      ["STT_MODEL", "small", "Sunucuda: whisper boyutu (small / medium)"],
      ["STT_DEVICE", "cpu", "Sunucuda: cpu veya cuda"],
      ["PIPER_MODEL", "~/piper/tr_TR-dfki-medium.onnx", "Sunucuda: Türkçe ses modeli"]],
@@ -483,7 +489,13 @@ table(
       "Daha küçük model (qwen3:1.7b) veya STT_MODEL=base dene"],
      ["Hoparlörden model düşüncesi okunuyor",
       "&lt;think&gt; etiketi sızmış",
-      "Ollama sürümünü güncelle; think:false destekli olmalı"]],
+      "Ollama sürümünü güncelle; think:false destekli olmalı"],
+     ["Durmadan kendi kendine uyanıyor",
+      "Uyandırma eşiği düşük, ortam gürültülü",
+      "TEPECAN_WAKE_THRESHOLD=0.6, sonra TEPECAN_WAKE_HITS=3"],
+     ["Uyandırma kelimesine hiç tepki vermiyor",
+      "Eşik yüksek, mikrofon kısık ya da model yolu yanlış",
+      "Açılıştaki \"Uyandırma kelimesi hazır\" satırını gör; eşiği 0.4 yap"]],
     [36 * mm, 46 * mm, 74 * mm])
 
 h2("Beklenen gecikme")
@@ -507,6 +519,9 @@ source("yazilim/maskot/tepecan.py")
 story.append(PageBreak())
 h2("yazilim/maskot/persona.txt — kişilik")
 source("yazilim/maskot/persona.txt")
+
+h2("yazilim/maskot/UYANDIRMA.md — uyandırma kelimesi kurulumu")
+source("yazilim/maskot/UYANDIRMA.md")
 
 h2("yazilim/maskot/bilgiler.txt — doldurulacak bilgi dosyası")
 source("yazilim/maskot/bilgiler.txt")
