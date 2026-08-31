@@ -1,5 +1,8 @@
 sounddevice
 webrtcvad
+numpy
 requests
 gpiozero
-anthropic     # yalnızca TEPECAN_LLM_BACKEND=claude kullanacaksan
+openwakeword     # uyandırma kelimesi ("Hey Tepecan")
+onnxruntime      # openwakeword bunu kullanıyor
+anthropic        # yalnızca TEPECAN_LLM_BACKEND=claude kullanacaksan

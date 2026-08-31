@@ -11,6 +11,7 @@ hoparlöründen söyler.
 - **240 mm** boy, tek parça basılan gövde
 - Sırtta **vidalı kapak**, içinde 65 × 54 × 63 mm elektronik bölmesi
 - Göğüste kabartma **IEEE** ve **YEDİTEPE**, sol omuzda **7** rozeti
+- **"Hey Tepecan"** ile butonsuz tetikleme (yerel, openWakeWord)
 - Beyin ağdaki bir PC'de çalışır: **token maliyeti yok, internet gerekmez**
 
 ---
@@ -32,7 +33,7 @@ dokuman/      16 sayfalık yapım kılavuzu (PDF), bağlantı şeması, üretim 
 
 ```
    MASKOT (Pi Zero 2 W)                    BEYİN SUNUCUSU (bir PC)
-   butona basılır
+   "Hey Tepecan" / buton
    mikrofon kaydeder      ──── Wi-Fi ───▶  /stt    faster-whisper   (ses → metin)
                                            :11434  Ollama, qwen3:4b (cevabı üretir)
    hoparlör çalar         ◀─── Wi-Fi ────  /tts    Piper            (metin → ses)
@@ -102,7 +103,10 @@ pip install -r requirements.txt
 python3 tepecan.py
 ```
 
-Butona bas, konuş, bırak — kayıt sen susunca kendiliğinden biter.
+**"Hey Tepecan"** de ya da omuzdaki butona bas — kayıt sen susunca kendiliğinden
+biter. Uyandırma kelimesi modelini edinmek için
+[`yazilim/maskot/UYANDIRMA.md`](yazilim/maskot/UYANDIRMA.md); model dosyası
+yoksa program yine çalışır, sadece buton tetikler.
 
 ### Ayarlar
 
@@ -112,6 +116,8 @@ Butona bas, konuş, bırak — kayıt sen susunca kendiliğinden biter.
 | `TEPECAN_MODEL` | `qwen3:4b` | Ollama'da kullanılacak model |
 | `TEPECAN_LLM_BACKEND` | `ollama` | `ollama` veya `claude` |
 | `TEPECAN_BUTTON_PIN` | `17` | Butonun bağlı olduğu GPIO |
+| `TEPECAN_WAKE_MODEL` | `~/tepecan/hey_tepecan.onnx` | Uyandırma modeli; yoksa sadece buton |
+| `TEPECAN_WAKE_THRESHOLD` | `0.5` | Uyandırma eşiği (yükselt = az yanlış tetikleme) |
 | `STT_MODEL` / `STT_DEVICE` | `small` / `cpu` | Sunucuda whisper boyutu ve cihazı |
 | `PIPER_MODEL` | `~/piper/tr_TR-dfki-medium.onnx` | Sunucuda Türkçe ses modeli |
 
