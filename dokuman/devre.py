@@ -46,9 +46,9 @@ box(40, 44, 34, 16, "Raspberry Pi Zero 2 W",
 box(40, 24, 34, 16, "ReSpeaker 2-Mics Pi HAT",
     ["mikrofon L      mikrofon R", "WM8960 kodek + 3 W D-sınıfı amfi"])
 # --- hoparlör
-box(84, 24, 24, 12, "Hoparlör", ["40 mm · 4 Ω · 3 W"])
+box(84, 24, 24, 12, "Hoparlör", ["40 × 20 mm oval · 4 Ω · 3 W"])
 # --- buton
-box(78, 5, 30, 12, "Buton (6 mm tactile)", ["sol omuzdaki 7 rozetinin", "altına gelir"])
+box(78, 5, 30, 12, "Buton (6 × 6 mm tactile)", ["sırt kapağının iç yüzündeki", "cebe oturur"])
 
 # --- bağlantılar
 arrow((28, 52), (40, 52), "micro-USB\n(PWR IN portu)", off=(0, 0.8))

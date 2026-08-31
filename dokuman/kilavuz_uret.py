@@ -9,9 +9,11 @@ from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import mm
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
-from reportlab.platypus import (BaseDocTemplate, Frame, KeepTogether, ListFlowable,
-                                ListItem, NextPageTemplate, PageBreak, PageTemplate,
-                                Paragraph, Preformatted, Spacer, Table, TableStyle)
+from reportlab.platypus import (BaseDocTemplate, Frame, Image, KeepTogether,
+                                ListFlowable, ListItem, NextPageTemplate, PageBreak,
+                                PageTemplate, Paragraph, Preformatted, Spacer, Table,
+                                TableStyle)
+from PIL import Image as PILImage
 
 FONTS = "/usr/local/lib/python3.11/dist-packages/matplotlib/mpl-data/fonts/ttf"
 SRC = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # depo kökü
@@ -102,6 +104,19 @@ def table(head, rows, widths, mono_cols=()):
     story.append(Spacer(1, 8))
 
 
+def picture(path, width=150 * mm, caption=None):
+    """Depodaki bir görseli en-boy oranını koruyarak yerleştirir."""
+    full = os.path.join(SRC, path)
+    if not os.path.exists(full):
+        return
+    w, h = PILImage.open(full).size
+    story.append(Image(full, width=width, height=width * h / float(w)))
+    if caption:
+        story.append(Paragraph(caption, ParagraphStyle(
+            "cap", parent=S["note"], spaceBefore=3, leftIndent=0)))
+    story.append(Spacer(1, 8))
+
+
 def source(path):
     with open(os.path.join(SRC, path), encoding="utf-8") as f:
         code(f.read())
@@ -124,6 +139,8 @@ story.append(Paragraph(
 story.append(Spacer(1, 20))
 story.append(Table([[""]], colWidths=[150 * mm], rowHeights=[2],
                    style=TableStyle([("BACKGROUND", (0, 0), (-1, -1), ACCENT)])))
+story.append(Spacer(1, 10))
+picture("govde/preview/tepecan_views.png", 150 * mm)
 story.append(PageBreak())
 
 # ==========================================================================
@@ -181,18 +198,22 @@ table(
      ["2", "ReSpeaker 2-Mics Pi HAT (Seeed)",
       "Tek kartta 2 mikrofon + ses kodeki + 3 W amfi + buton + 3 RGB LED. "
       "Pi Zero ile birebir aynı ölçü. Modül sayısını dörtten bire indirir.", "$15"],
-     ["3", "40 mm 4 Ω 3 W hoparlör",
-      "Konuşma için fazlasıyla yeterli, 6 mm kalınlık. 40 × 20 mm oval de olur.", "$3"],
+     ["3", "40 × 20 mm oval 4 Ω 3 W hoparlör",
+      "Gövdedeki yuva bu ölçüye göre: ızgara 40 × 20 mm, oturma omzu 42 × 22 mm, "
+      "en fazla 8 mm gövde derinliği. Yuvarlak 40 mm de sığar ama göğüs yazısını "
+      "sıkıştırır.", "$3"],
      ["4", "microSD 32 GB, A1 sınıfı",
       "İşletim sistemi. A1 sınıfı olmayan kartlar Pi'yi belirgin yavaşlatır.", "$6"],
      ["5", "5 V 3 A adaptör + micro-USB kablo",
       "Pi + amfi tepe akımı ~800 mA. Zayıf adaptör ses bozulmasına yol açar.", "$8"],
      ["6", "14 × 14 mm alüminyum soğutucu",
       "Kapalı PLA kasada işlemci sıcaklığını düşürür.", "$1"],
-     ["7", "M2.5 × 8 mm ara pul ve vida seti",
-      "Kartı basılı montaj kulelerine sabitlemek için.", "$3"],
-     ["8", "6 mm tactile switch + ince kablo",
-      "Omuzdaki 7 rozetinin altına gelen bas-konuş butonu.", "$1"],
+     ["7", "M2.5 × 8 mm kendinden kılavuzlu vida (4 adet)",
+      "Kartı basılı montaj kulelerine sabitlemek için. Kulelerde Ø2.1 mm "
+      "kılavuz delik hazır, ara pula gerek yok.", "$3"],
+     ["8", "6 × 6 × 4.3 mm tactile switch + ince kablo",
+      "Sırt kapağındaki bas-konuş butonu. Uyandırma kelimesi çalışırken de "
+      "yedek kalıyor. Basılan kapağı (tepecan_buton.stl) sen basıyorsun.", "$1"],
      ["9", "M3 × 8 kendinden kılavuzlu vida (2 adet)",
       "Sırt kapağını tutturmak için. Kasada yuvaları hazır.", "$1"],
      ["10", "PLA filament, mavi (~400 g)",
@@ -214,12 +235,14 @@ h1("3. Gövde: 3D baskı")
 h2("Basılacak dosyalar")
 table(
     ["Dosya", "Ne", "Adet"],
-    [["tepecan_body.stl", "İçi boş gövde. Sırtta açıklık, kapak oturma kenarı, "
-      "iki vida kulağı, kablo yuvası.", "1"],
+    [["tepecan_body.stl", "İçi boş gövde. Sırtta açıklık ve kapak oturma kenarı, "
+      "iki vida boss'u, hoparlör adası, dört kart kulesi, kablo yuvası.", "1"],
      ["tepecan_lid.stl", "Sırt kapağı. Havalandırma yarıkları ve havşalı vida "
       "delikleriyle, baskı pozisyonunda.", "1"],
+     ["tepecan_buton.stl", "Kapaktaki butonun kapağı: Ø10 mm başlık, 5 mm sap. "
+      "Yatık basılır, destek istemez.", "1"],
      ["tepecan_solid.stl", "İçi dolu vitrin figürü. Elektronik koymayacaksan "
-      "bunu bas, diğer ikisini atla.", "0-1"]],
+      "bunu bas, diğerlerini atla.", "0-1"]],
     [34 * mm, 106 * mm, 16 * mm], mono_cols=(0,))
 
 h2("Baskı ayarları")
@@ -241,59 +264,84 @@ p("Ölçüler: 240 mm boy (anten uçları dahil), 138 mm en, 94 mm derinlik. "
   "filament ve 30-45 saat. Daha kısa baskı için modeli <font face='Mono'>--height 180</font> "
   "ile yeniden üretebilirsin; cidar 3 mm ve vidalar M3 olarak kalır.")
 
-h2("Gövdede yapılacak değişiklikler")
-p("Aşağıdakiler modelde parametrik; elektronik için gerekli olanlar bunlar:")
+h2("Gövdedeki elektronik detayları")
+p("Bunların hepsi modelde hazır; ölçüler <font face='Mono'>govde/dogrula.py</font> "
+  "ile her baskı öncesi ölçülüyor.")
 bullets([
-    "<b>Göğüs ızgarası</b> — panelin girintili alanına yatay yarıklar. Hoparlör "
-    "tam arkasına gelir, IEEE / YEDİTEPE yazısı üstte kalır.",
-    "<b>Hoparlör yuvası</b> — 40 mm'lik hoparlörü ortalayan, ızgaranın arkasına "
-    "oturan halka.",
-    "<b>Kart montaj kuleleri</b> — M2.5 için dört adet, Pi'nin delik düzenine göre "
-    "(58 × 23 mm).",
-    "<b>Kapak açıklığının büyütülmesi</b> — şu an geçiş 48 × 51 mm, 65 mm'lik kart "
-    "ancak çapraz giriyor. 70 × 62 mm yapılınca kart düz girer.",
-    "<b>Buton yuvası</b> — sol omuzdaki 7 rozetinin altına 6 mm switch cebi.",
-    "<b>İsteğe bağlı: ışıklı gözler</b> — HAT'teki RGB LED'leri boyundan geçen bir "
-    "ışık kanalıyla gözlere taşımak. Gözler şeffaf filamentten ayrı basılır. "
-    "Maskotu canlı gösteren tek şey budur, ama kafada kanal ve iki parçalı baskı ister.",
+    "<b>Göğüs ızgarası</b> — 40 × 20 mm oval alan içinde 4 yatay yarık, 2.7 mm "
+    "yükseklik. IEEE / YEDİTEPE yazısı üstte kalıyor.",
+    "<b>Hoparlör yuvası</b> — ızgaranın arkasında düz omuzlu bir ada: göğüs duvarı "
+    "küresel olduğu için düz yüzlü bir hoparlör ona yaslanamıyor, ada 6.4 mm'lik "
+    "sarkmayı dolduruyor. Cep 42 × 22 mm, omuz 2.4 mm, yanal tutuş 4 mm.",
+    "<b>Kart montaj kuleleri</b> — Ø6 mm, dört adet, Pi Zero 2 W delik düzenine göre "
+    "58 × 23 mm. Üst yüzeyleri tabandan 61 mm'de, tepelerinde M2.5 için Ø2.1 mm "
+    "kılavuz delik, 8 mm derin.",
+    "<b>Kapak açıklığı</b> — dıştan 70 × 62 mm, oturma kenarından geçiş 61 × 53 mm. "
+    "Kart 65 mm; köşegen 80 mm olduğu için hafif çapraz tutarak giriyor.",
+    "<b>Vida boss'ları</b> — Ø18.7 mm, kavite yüzeyinden 12 mm içeri; M3 vidaya "
+    "kapak eti ile birlikte 15 mm diş kalıyor.",
+    "<b>Buton yuvası</b> — sırt kapağının iç yüzünde: 6.6 mm kare cep, 4.6 mm derin, "
+    "önünde 2 mm sap kılavuzu, dışa Ø4.2 mm delik.",
+    "<b>Kablo yuvası</b> — alt sırtta 15.6 × 7.8 mm, tabandan 38 mm'de; micro-USB "
+    "fişi kıvrılmadan geçiyor.",
 ])
+
+note("Işıklı gözler denenmedi: HAT'teki RGB LED'leri boyundan geçen bir ışık "
+     "kanalıyla gözlere taşımak, gözleri şeffaf filamentten ayrı basmayı ve kafayı "
+     "iki parça yapmayı gerektiriyor. Maskotu en canlı gösterecek şey bu, ama "
+     "yapımı belirgin zorlaştırdığı için modele girmedi.")
+
+picture("govde/preview/tepecan_hatch.png", 150 * mm,
+        "Soldan: sırt açıklığı ve kapak oturma kenarı; bölmenin dıştan görünüşü; "
+        "kapak, baskı pozisyonunda (dış yüz yukarı, destek gerekmez).")
 
 # ==========================================================================
 story.append(PageBreak())
 h1("4. İç yerleşim ve montaj")
 p("İç boşluk elipsoid olduğu için kutu ölçüsünden cömert: en geniş yerinde "
-  "90 × 75 mm, toplam yükseklik 87 mm. Orta bantta her yerde en az 74 × 61 mm "
-  "kesit var. Boşluk tabandan 34 mm'de başlıyor, 121 mm'de bitiyor.")
+  "90 × 75 mm, toplam yükseklik 87 mm. Boşluk tabandan 34 mm'de başlıyor, "
+  "121 mm'de bitiyor. Aşağıdaki yükseklikler tabandan ölçülü.")
 
 code("""
         ÖN (yüz)                              ARKA (kapak)
    ┌──────────────────────────────────────────────────────┐
-   │   ○        ○     mikrofon portları (⌀3, 45 mm arayla) │  z ≈ 100-115 mm
+   │   ○        ○     mikrofon portları (HAT üzerinde)     │  z ≈ 100-115 mm
    │  ╔════════════╗                                      │
-   │  ║  HOPARLÖR  ║  40 mm, öne bakar,                   │  z ≈ 75-115 mm
-   │  ║  + yuvası  ║  göğüs ızgarasından konuşur          │
-   │  ╚════════════╝                                      │
-   │                          ┌────────────────────────┐  │
-   │                          │  Pi Zero 2 W + HAT     │  │  z ≈ 45-70 mm
-   │                          │  yatay, 4 kule üstünde │  │
-   │                          └────────────────────────┘  │
-   │   kablo yuvası ─────────────────────────────────▶    │  z ≈ 38 mm
+   │  ║  HOPARLÖR  ║  40 x 20 mm oval, öne bakar,          │  z = 57-77 mm
+   │  ║  + adası   ║  göğüs ızgarasından konuşur           │
+   │  ╚════════════╝            ┌───────────────────────┐  │
+   │                            │  Pi Zero 2 W + HAT    │  │  z = 61-83 mm
+   │        4 kule ─────────────│  yatay, kule üstünde  │  │
+   │        z = 34-61 mm        └───────────────────────┘  │
+   │                                  vida bossu ● z=59 mm │
+   │   kablo yuvası ─────────────────────────────────▶     │  z = 38 mm
    └──────────────────────────────────────────────────────┘
+
+   Kart y ekseninde hoparlör adasının 5 mm arkasında, alt vida bossunun
+   9 mm önünde duruyor. Her yönde en az 1 mm boşluk ölçüldü.
 """)
+
+picture("govde/preview/tepecan_ic.png", 150 * mm,
+        "Solda gövdenin dikey kesiti: kart kuleleri ve hoparlör adası. "
+        "Sağda kapak açıkken bölmenin içi.")
 
 h2("Montaj sırası")
 bullets([
     "Gövdeyi ve kapağı bas, destekleri temizle. Kapağın açıklığa boşlukla "
     "oturduğunu kuru kuruya dene.",
-    "Hoparlörü göğüs ızgarasının arkasındaki yuvaya yapıştır. <b>Arkasını "
-    "olabildiğince kapalı tut</b> — yuvanın kenarını silikonla sızdırmaz yapmak "
-    "ses kalitesini gözle görülür artırır, bedava kazançtır.",
+    "Hoparlörü göğüs ızgarasının arkasındaki adaya, düz omza yüzü öne bakacak "
+    "şekilde otur ve kenarından yapıştır. <b>Arkasını olabildiğince kapalı tut</b> "
+    "— omzun çevresini silikonla sızdırmaz yapmak ses kalitesini gözle görülür "
+    "artırır, bedava kazançtır.",
     "HAT'i Pi'nin üstüne otur, ikisini birlikte dört kuleye M2.5 vidalarla sabitle. "
+    "Kart yatay durur, delikleri kulelerin Ø2.1 mm kılavuz deliklerine denk gelir. "
     "Micro-USB portları kablo yuvasına baksın, böylece güç kablosu kıvrılmadan çıkar.",
     "İşlemcinin üstüne soğutucuyu yapıştır (HAT'i takmadan önce yap, sonra elin girmez).",
     "Hoparlör kablosunu HAT'in JST hoparlör çıkışına tak.",
-    "Butonu omuz rozetinin arkasındaki cebe yerleştir, iki telini HAT'in GPIO17 ve "
-    "GND pinlerine bağla.",
+    "Buton kapağını (tepecan_buton.stl) sırt kapağının <b>dışından</b> deliğe geçir. "
+    "Switch'i kapağın iç yüzündeki cebe, pistonu kapağa bakacak şekilde bastır; sap "
+    "tam pistona dayanır. İki telini HAT'in GPIO17 ve GND pinlerine bağla. "
+    "Telleri kapağı kapatırken sıkışmayacak kadar uzun bırak.",
     "Güç kablosunu alt sırttaki yuvadan geçir, Pi'ye tak.",
     "Kapağı iki M3 vidayla kapat. Vidalar havşalı deliklere oturur, başları yüzeyle "
     "aynı hizada kalır.",
@@ -304,11 +352,13 @@ table(
     ["Nereden", "Nereye", "Not"],
     [["Hoparlör (+/−)", "HAT üzerindeki JST hoparlör çıkışı", "Kutup önemli değil, "
       "tek hoparlör var"],
-     ["Buton bacak 1", "GPIO17", "Kodda TEPECAN_BUTTON_PIN"],
+     ["Buton bacak 1", "GPIO17", "Kapaktaki switch; kodda TEPECAN_BUTTON_PIN"],
      ["Buton bacak 2", "GND", ""],
      ["5 V adaptör", "Pi'nin PWR IN micro-USB portu", "Veri portuna değil"],
      ["HAT", "Pi 40 pin header", "Doğrudan oturur, ara kablo yok"]],
     [34 * mm, 62 * mm, 60 * mm])
+
+picture("dokuman/devre_semasi.png", 150 * mm, "Bağlantı şeması.")
 
 note("Isı: kapalı PLA kasada Zero 2 W boşta 50-55 °C civarında kalır. Kapaktaki "
      "üç yarık ve kablo yuvası hafif hava akışı sağlıyor, soğutucuyla birlikte "
@@ -385,7 +435,7 @@ pip install --break-system-packages -r requirements-pi.txt
 python3 tepecan.py
 """)
 
-p("\"Hey Tepecan\" de ya da omuzdaki butona bas; kayıt sen susunca kendiliğinden "
+p("\"Hey Tepecan\" de ya da sırt kapağındaki butona bas; kayıt sen susunca kendiliğinden "
   "biter. Terminalde durumu ve konuşulan metni görürsün. Uyandırma kelimesi "
   "modelini edinmek için <font face='Mono'>yazilim/maskot/UYANDIRMA.md</font> "
   "dosyasına bak — model dosyası yoksa program yine çalışır, sadece buton tetikler.")
