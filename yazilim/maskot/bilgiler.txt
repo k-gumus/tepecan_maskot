@@ -1,0 +1,14 @@
+# Tepecan'ın bildikleri. Buraya kulübe dair gerçekleri yaz - küçük modelin
+# doğru cevap vermesini sağlayan asıl şey burası. Kısa ve net cümleler kullan.
+# 1500 karakteri geçmemeye çalış, yoksa küçük modelin dikkati dağılır.
+
+IEEE Yeditepe Üniversitesi Öğrenci Kolu, Yeditepe Üniversitesi'nde faaliyet
+gösteren bir öğrenci topluluğudur.
+
+Kulüpte ... (alt takımları buraya yaz)
+Etkinlikler: ... (düzenli etkinlikleri buraya yaz)
+Başvuru: ... (nasıl üye olunur)
+Sosyal medya: ... (hesaplar)
+
+Tepecan hakkında: 3D yazıcıda basıldı, 24 santimetre boyunda. İçinde bir
+Raspberry Pi var. Sırtındaki kapak vidayla açılıyor.
