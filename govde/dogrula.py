@@ -169,6 +169,23 @@ if diag >= board_diag + 2.0:
 else:
     bad("kart açıklıktan geçmiyor: %.1f > %.1f mm" % (board_diag, diag))
 
+# Kule vidalarına tornavida erişimi: delikler açıklığın kenarına ne kadar yakın?
+# Açıklık yuvarlatılmış dikdörtgen; delik yüksekliğindeki yarı-genişliği ölçüyoruz.
+corner_r = M(4.0)
+hatch_zc = Z(T.HATCH_Z)
+d = abs(board_z0 - hatch_zc)
+straight = h_open / 2 - corner_r
+if d <= straight:
+    half_at_holes = w_open / 2
+else:
+    half_at_holes = w_open / 2 - corner_r + float(
+        np.sqrt(max(0.0, corner_r ** 2 - (d - straight) ** 2)))
+margin = half_at_holes - M(T.BOARD_HOLE_X)
+if margin >= 3.0:
+    ok("kule vidalarına erişim: açıklık kenarına %.1f mm (tornavida girer)" % margin)
+else:
+    bad("kule vidaları açıklığın kenarına çok yakın: %.1f mm" % margin)
+
 print("\n--- montaj ölçüleri ---")
 print("     kule delik aralığı  %.1f x %.1f mm (Pi Zero 2 W: 58.0 x 23.0)"
       % (M(2 * T.BOARD_HOLE_X), M(2 * T.BOARD_HOLE_Y)))

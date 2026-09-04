@@ -313,11 +313,14 @@ EYE_W, EYE_H = 9.5, 10.5        # lens half width / half height on the face
 EYE_BULGE = 3.4                 # how far the lens stands off the head
 EYE_SINK = 1.2                  # how far its equator sits under the surface
 
-HATCH_W = 45.0                  # opening width  (x) - 70 mm, kart rahat girsin
+# Açıklık genişliği kartın kendisine göre değil, kartı vidalayan tornavidaya
+# göre: kule delikleri x = +-29 mm ve açıklığın alt köşe yuvarlağının hemen
+# içinde kalıyor. 45 birimde kenara 1.4 mm kalıyordu, tornavida dik giremiyordu.
+HATCH_W = 47.0                  # opening width  (x) - 73 mm
 HATCH_H = 40.0                  # opening height (z) - 62 mm
 HATCH_Z = 54.0
 HATCH_R = 5.0                   # corner radius
-LEDGE_W = 3.0                   # how far the ledge reaches into the opening
+LEDGE_W = 2.5                   # how far the ledge reaches into the opening
 BOSS_R = 6.0
 BOSS_Z = (68.0, 40.0)           # screw boss heights
 CABLE_W, CABLE_H, CABLE_Z = 10.0, 5.0, 26.5

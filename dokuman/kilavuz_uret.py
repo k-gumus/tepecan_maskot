@@ -276,8 +276,10 @@ bullets([
     "<b>Kart montaj kuleleri</b> — Ø6 mm, dört adet, Pi Zero 2 W delik düzenine göre "
     "58 × 23 mm. Üst yüzeyleri tabandan 61 mm'de, tepelerinde M2.5 için Ø2.1 mm "
     "kılavuz delik, 8 mm derin.",
-    "<b>Kapak açıklığı</b> — dıştan 70 × 62 mm, oturma kenarından geçiş 61 × 53 mm. "
-    "Kart 65 mm; köşegen 80 mm olduğu için hafif çapraz tutarak giriyor.",
+    "<b>Kapak açıklığı</b> — dıştan 73 × 62 mm, oturma kenarından geçiş 65 × 54 mm. "
+    "Genişliği kartın kendisi değil, kartı vidalayan tornavida belirledi: kule "
+    "delikleri x = ±29 mm'de ve açıklığın alt köşesine yakın; bu ölçüde kenara "
+    "3.7 mm kalıyor, tornavida rahat giriyor.",
     "<b>Vida boss'ları</b> — Ø18.7 mm, kavite yüzeyinden 12 mm içeri; M3 vidaya "
     "kapak eti ile birlikte 15 mm diş kalıyor.",
     "<b>Buton yuvası</b> — sırt kapağının iç yüzünde: 6.6 mm kare cep, 4.6 mm derin, "

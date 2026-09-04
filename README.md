@@ -9,7 +9,7 @@ hoparlöründen söyler.
 </p>
 
 - **240 mm** boy, tek parça basılan gövde
-- Sırtta **vidalı kapak** (70 × 62 mm açıklık), içinde 90 × 75 × 87 mm bölme
+- Sırtta **vidalı kapak** (73 × 62 mm açıklık), içinde 90 × 75 × 87 mm bölme
 - Göğüste kabartma **IEEE** ve **YEDİTEPE**, sol omuzda **7** rozeti
 - **"Hey Tepecan"** ile butonsuz tetikleme (yerel, openWakeWord)
 - Beyin ağdaki bir PC'de çalışır: **token maliyeti yok, internet gerekmez**
@@ -85,7 +85,7 @@ gövdeye girmediği anlamına geliyor.
 
 | İç ölçü | Değer |
 |---|---|
-| Kapak açıklığı / geçiş | 70 × 62 mm / 61 × 53 mm |
+| Kapak açıklığı / geçiş | 73 × 62 mm / 65 × 54 mm |
 | Kart kuleleri | Ø6 mm, 58 × 23 mm aralık, üstleri tabandan 61 mm'de |
 | Kule kılavuz deliği | Ø2.1 mm × 8 mm (M2.5 kendinden kılavuzlu) |
 | Hoparlör yuvası | ızgara 40 × 20 mm, cep 42 × 22 mm, düz omuz |
