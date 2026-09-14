@@ -1,0 +1,8 @@
+dependencies:
+  idf:
+    version: ">=5.1"
+  # microWakeWord'ün çalıştırdığı yığın: TFLite Micro + S3 hızlandırması +
+  # 40 mel özniteliğini üreten ön işleme. ESPHome de aynı üçlüyü kullanıyor.
+  espressif/esp-tflite-micro: "~1.3.3"
+  espressif/esp-nn: "~1.1.2"
+  esphome/esp-micro-speech-features: "~1.2.3"
