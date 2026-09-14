@@ -4,8 +4,13 @@ Butona basmadan konuşabilmek için. Sistem **openWakeWord** kullanıyor: küç�
 bir sinir ağı sürekli mikrofonu dinliyor, sadece kelimeyi duyunca kaydı
 başlatıyor. Tamamen yerel, ücretsiz, internet gerektirmiyor.
 
-Pi Zero 2 W'de rahat çalışıyor çünkü metin→ses işini sunucuya taşıdık; o RAM
+Bu sınıf kartlarda rahat çalışıyor çünkü metin→ses işini sunucuya taşıdık; o RAM
 boşta.
+
+**Kart 64-bit (aarch64) olmalı.** openWakeWord `onnxruntime` istiyor ve onun
+Linux tekerlekleri yalnız aarch64 için yayınlanıyor. ARMv6 (Raspberry Pi Zero W
+1. nesil) ve ARMv7 kartlarda ne onnxruntime ne de tflite-runtime kurulabiliyor;
+o kartlarda uyandırma kelimesi çalışmaz, yalnız buton kalır.
 
 ---
 

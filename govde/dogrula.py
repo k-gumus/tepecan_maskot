@@ -58,6 +58,7 @@ body = load("tepecan_body")
 lid = load("tepecan_lid")
 cap = load("tepecan_buton")
 solid = load("tepecan_solid")
+plate = load("tepecan_plaka")
 
 
 def clash(mesh, env):
@@ -92,7 +93,8 @@ def fits(name, mesh, env, limit=1.0):
 # --------------------------------------------------------------------------
 print("--- baskıya hazırlık ---")
 for name, mesh in (("tepecan_solid", solid), ("tepecan_body", body),
-                   ("tepecan_lid", lid), ("tepecan_buton", cap)):
+                   ("tepecan_lid", lid), ("tepecan_buton", cap),
+                   ("tepecan_plaka", plate)):
     parts = len(mesh.split(only_watertight=False))
     if mesh.is_watertight and mesh.is_winding_consistent and parts == 1 and mesh.volume > 0:
         ok("%-14s su geçirmez, tek parça, %6.1f cm3" % (name, mesh.volume / 1000.0))
@@ -101,19 +103,65 @@ for name, mesh in (("tepecan_solid", solid), ("tepecan_body", body),
             % (name, mesh.is_watertight, mesh.is_winding_consistent, parts))
 
 print("\n--- iç hacim ---")
-# 1. Pi Zero 2 W + HAT: 65 x 30 mm kart, başlıklarla birlikte 22 mm yükseklik
-board_z0 = Z(T.BOARD_Z)
-fits("kart + HAT (65x30x22 mm, +%.0f mm boşluk)" % CLEAR, body,
-     box((65 + 2 * CLEAR, 30 + 2 * CLEAR, 22 + CLEAR),
-         (0, M(T.BOARD_Y), board_z0 + 11 + CLEAR / 2)))
+# Kart artık doğrudan gövdeye değil, adaptör plakasının üstüne oturuyor.
+plate_z0 = Z(T.BOARD_Z)                             # kulelerin tepesi
+board_z0 = plate_z0 + M(T.PLATE_T + T.PLATE_STAND)  # kartın alt yüzeyi
 
-# 2. Hoparlör: 40 x 20 mm oval, 8 mm derin gövde, düz omuza oturmuş
+# 1. Referans kart zarfı: Pi Zero ayak izi, konnektörlerle 18 mm yükseklik.
+#    HAT yok (Pi bulunamıyor, USB ses yolu kullanılıyor), ama USB dongle ve
+#    kablo için HAT'inkine yakın bir yükseklik bırakıyoruz.
+fits("kart (65x30x18 mm, +%.0f mm boşluk)" % CLEAR, body,
+     box((65 + 2 * CLEAR, 30 + 2 * CLEAR, 18 + CLEAR),
+         (0, M(T.BOARD_Y), board_z0 + 9 + CLEAR / 2)))
+
+# 2. Hangi kartın alınacağı belli değil: kavitenin kabul ettiği zarfı ölçüp
+#    yazdırıyoruz, ki muadil seçerken tahmine değil sayıya bakılsın.
+def envelope(depth, height, lo=20.0, hi=95.0):
+    """Verilen derinlik/yükseklikte sığan en geniş kart; sığmıyorsa None."""
+    for _ in range(8):
+        mid = (lo + hi) / 2.0
+        env = box((mid + 2 * CLEAR, depth + 2 * CLEAR, height + CLEAR),
+                  (0, M(T.BOARD_Y), board_z0 + height / 2.0 + CLEAR / 2.0))
+        lo, hi = (mid, hi) if clash(body, env)[0] <= 1.0 else (lo, mid)
+    return None if lo <= 20.5 else lo
+
+for d in (30.0, 35.0, 40.0):
+    w = envelope(d, 18.0)
+    print("     %4.0f mm derin kart -> %s"
+          % (d, "en fazla %.1f mm genişlik" % w if w else "SIĞMIYOR"))
+
+h = 20.0
+while h < 60.0 and envelope(30.0, h + 5.0):
+    h += 5.0
+print("     30 mm derin kart -> plakanın üstünde en az %.0f mm yükseklik" % h)
+
+# 3. Hoparlör: 30 mm yuvarlak, 8 mm derin gövde, düz omuza oturmuş
 spk_y = M(T.speaker_seat_y())
-fits("hoparlör (%.0fx%.0f oval, 8 mm derin)" % (T.SPK_BODY_W, T.SPK_BODY_H), body,
+fits("hoparlör (Ø%.0f mm yuvarlak, 8 mm derin)" % T.SPK_BODY_W, body,
      oval_prism(T.SPK_BODY_W / 2 + CLEAR - 0.05, T.SPK_BODY_H / 2 + CLEAR - 0.05,
                 spk_y - 8.0, spk_y - 0.2, (0, Z(T.SPK_Z))))
 
-# 3. Alt vida bossu kartın arka kenarının gerisinde kalmalı
+# 4. Hoparlör adası kartın önüne girmemeli. Sınırlayan yüzey oturma omzu
+#    değil, adanın arkaya bakan yüzü: omuz eksi bilezik derinliği.
+spk_back = spk_y - M(T.SPK_LIP)
+board_front = M(T.BOARD_Y) + 15.0
+if spk_back - board_front >= CLEAR:
+    ok("hoparlör adasının arkası kartın %.1f mm önünde (y=%.1f mm)"
+       % (spk_back - board_front, spk_back))
+else:
+    bad("hoparlör adası karta giriyor: ada arkası y=%.1f, kart ön kenarı y=%.1f mm"
+        % (spk_back, board_front))
+
+# 5. Göğüs yazısına pay: ızgaranın üst kenarı YEDİTEPE'nin altına girmemeli
+spk_top = Z(T.SPK_Z) + T.SPK_BODY_H / 2.0
+text_bottom = Z(57.0 - 3.6 / 2)
+if text_bottom - spk_top >= 2.0:
+    ok("ızgara üst kenarı YEDİTEPE'ye %.1f mm uzak" % (text_bottom - spk_top))
+else:
+    bad("ızgara göğüs yazısına giriyor: ızgara üstü z=%.1f, yazı altı z=%.1f"
+        % (spk_top, text_bottom))
+
+# 6. Alt vida bossu kartın arka kenarının gerisinde kalmalı
 boss_front = M(T.cavity_back_y(min(T.BOSS_Z)) + T.BOSS_DEPTH)
 board_back = M(T.BOARD_Y) - 15.0
 if board_back - boss_front >= CLEAR:
@@ -169,30 +217,61 @@ if diag >= board_diag + 2.0:
 else:
     bad("kart açıklıktan geçmiyor: %.1f > %.1f mm" % (board_diag, diag))
 
-# Kule vidalarına tornavida erişimi: delikler açıklığın kenarına ne kadar yakın?
-# Açıklık yuvarlatılmış dikdörtgen; delik yüksekliğindeki yarı-genişliği ölçüyoruz.
+# Plaka açıklıktan geçmeli: düz geçmezse yan yatırılarak, köşegenden.
+pw, pd, pt = plate.extents
+plate_diag = float(np.hypot(pw, pd))
+if pw <= w_open and pd <= h_open:
+    ok("adaptör plakası (%.1f x %.1f mm) açıklıktan düz geçiyor" % (pw, pd))
+elif plate_diag + 2.0 <= diag:
+    ok("adaptör plakası (%.1f x %.1f mm) yan yatırılarak geçiyor "
+       "(köşegen %.1f < %.1f mm)" % (pw, pd, plate_diag, diag))
+else:
+    bad("adaptör plakası açıklıktan geçmiyor: köşegen %.1f > %.1f mm"
+        % (plate_diag, diag))
+
+# Tornavida erişimi: hem gövde kulelerinin hem plaka standoff'larının vidaları
+# açıklıktan dik girilerek sıkılabilmeli. Açıklık yuvarlatılmış dikdörtgen,
+# o yüzden delik yüksekliğindeki yarı-genişliği hesaplıyoruz.
 corner_r = M(4.0)
 hatch_zc = Z(T.HATCH_Z)
-d = abs(board_z0 - hatch_zc)
-straight = h_open / 2 - corner_r
-if d <= straight:
-    half_at_holes = w_open / 2
-else:
-    half_at_holes = w_open / 2 - corner_r + float(
+
+
+def half_width_at(z):
+    d = abs(z - hatch_zc)
+    straight = h_open / 2 - corner_r
+    if d <= straight:
+        return w_open / 2
+    return w_open / 2 - corner_r + float(
         np.sqrt(max(0.0, corner_r ** 2 - (d - straight) ** 2)))
-margin = half_at_holes - M(T.BOARD_HOLE_X)
-if margin >= 3.0:
-    ok("kule vidalarına erişim: açıklık kenarına %.1f mm (tornavida girer)" % margin)
-else:
-    bad("kule vidaları açıklığın kenarına çok yakın: %.1f mm" % margin)
+
+
+for label, z, hx in (("gövde kulesi", plate_z0, M(T.PLATE_HOLE_X)),
+                     ("plaka standoff'u", board_z0, M(T.BOARD_HOLE_X))):
+    margin = half_width_at(z) - hx
+    if margin >= 3.0:
+        ok("%s vidalarına erişim: açıklık kenarına %.1f mm (tornavida girer)"
+           % (label, margin))
+    else:
+        bad("%s vidaları açıklığın kenarına çok yakın: %.1f mm" % (label, margin))
 
 print("\n--- montaj ölçüleri ---")
-print("     kule delik aralığı  %.1f x %.1f mm (Pi Zero 2 W: 58.0 x 23.0)"
+print("     gövde kule aralığı  %.1f x %.1f mm (karttan bağımsız)"
+      % (M(2 * T.PLATE_HOLE_X), M(2 * T.PLATE_HOLE_Y)))
+print("     kule üst yüzeyi     z = %.1f mm (tabandan)" % plate_z0)
+print("     plaka               %.1f x %.1f x %.1f mm, %.1f cm3"
+      % (pw, pd, pt, plate.volume / 1000.0))
+print("     plakadaki kart deseni %.1f x %.1f mm (Pi Zero ailesi: 58.0 x 23.0)"
       % (M(2 * T.BOARD_HOLE_X), M(2 * T.BOARD_HOLE_Y)))
-print("     kule üst yüzeyi     z = %.1f mm (tabandan)" % board_z0)
+print("     kart alt yüzeyi     z = %.1f mm, üstü (18 mm) z = %.1f mm"
+      % (board_z0, board_z0 + 18.0))
+print("     kart için y penceresi %.1f .. %.1f mm = %.1f mm derinlik"
+      " (kart merkezi y=%.1f)"
+      % (boss_front + CLEAR, spk_back - CLEAR,
+         (spk_back - boss_front) - 2 * CLEAR, M(T.BOARD_Y)))
 print("     kule / kılavuz çapı %.1f / %.1f mm" % (M(2 * T.POST_R), M(2 * T.POST_PILOT)))
 print("     vida bossu          Ø%.1f mm, %.1f mm derin" % (M(2 * T.BOSS_R), M(T.BOSS_DEPTH)))
-print("     hoparlör yuvası     %.1f x %.1f mm, %d yarık" % (M(T.SPK_W), M(T.SPK_H), T.SPK_SLOTS))
+print("     hoparlör            Ø%.1f mm @ z=%.1f mm, %d yarık"
+      % (M(T.SPK_W), Z(T.SPK_Z), T.SPK_SLOTS))
 print("     kablo yuvası        %.1f x %.1f mm @ z=%.1f mm"
       % (M(T.CABLE_W), M(T.CABLE_H), Z(T.CABLE_Z)))
 print("     et kalınlığı        %.1f mm" % M(T.WALL))

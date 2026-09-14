@@ -327,25 +327,41 @@ CABLE_W, CABLE_H, CABLE_Z = 10.0, 5.0, 26.5
 VENT_W = 24.0                   # cooling slots in the cover
 VENT_Z = (52.0, 56.0, 60.0)
 
-# Hoparlör: 40 x 20 mm oval. Yuvarlak 40 mm de akustik olarak sığardı ama
-# göğüs panelinde yazılara 10 mm kalıyordu; oval 25 mm bırakıyor.
+# Hoparlör: 30 mm yuvarlak, 4 Ω 3 W - TR'de bol bulunan standart ölçü.
+# Yuvarlak 40 mm akustik olarak daha iyi olurdu ve yazıya da sığardı, ama
+# göğüs küresel: bilezikle 46.8 mm'lik düz bir ayak izi, oturma omzunu
+# y = 11.9 mm'ye kadar geri itiyor ve ada kartın ön kenarının (y = +17.3)
+# içine giriyor. Kartı oynatmadan sığan en büyük yuvarlak 32 mm; 30 mm bir
+# kademe pay bırakıyor (omuz y = 26.0 mm).
 # Izgara hoparlörün kendi ölçüsünde; bilezik her yöne SPK_FIT boşluk bırakıyor.
-SPK_BODY_W, SPK_BODY_H = 40.0, 20.0     # mm, hoparlör gövdesi
+SPK_BODY_W, SPK_BODY_H = 30.0, 30.0     # mm, hoparlör gövdesi
 SPK_W, SPK_H = SPK_BODY_W, SPK_BODY_H   # configure() birime çeviriyor
-SPK_Z = 45.0
+SPK_Z = 43.5                    # 67.7 mm; YEDİTEPE'nin alt kenarına 3.2 mm pay
 SPK_SLOT = 1.7                  # ızgara yarık yüksekliği
-SPK_SLOTS = 4
+SPK_SLOTS = 5
 SPK_LIP = 2.6                   # oturma bileziğinin derinliği
 SPK_FIT = 1.0                   # mm, bileziğin hoparlöre bıraktığı boşluk
 SPK_RING = 2.4                  # mm, bilezik et kalınlığı
 
-# Kart: Pi Zero 2 W delik düzeni 58 x 23 mm
-# Kule boyu, kartın alt boss ile hoparlör gövdesi arasındaki boşluğa
-# oturmasına göre seçildi: 65 x 30 x 22 mm zarf her yönde >= 1 mm boşlukla
-# geçiyor (dogrula.py bunu ölçüyor).
-BOARD_Z = 41.0                  # kartın alt yüzeyinin oturduğu yükseklik
+# Kart montajı iki kademeli. Gövdede yalnız GENEL AMAÇLI dört kule var;
+# kartın kendi delik deseni, ayrı basılan bir adaptör plakasının üstünde.
+# Böylece kart değişirse 240 mm'lik gövde değil, 20 dakikalık plaka yeniden
+# basılıyor - gövde baskısı hangi kartın bulunacağına bağlı olmaktan çıkıyor.
+BOARD_Z = 41.0                  # kulelerin tepesi = plakanın alt yüzeyi
 BOARD_Y = 1.5                   # kavitede ileri, alt vida bossunun önünde
+PLATE_HOLE_X, PLATE_HOLE_Y = 44.0 / 2, 28.0 / 2     # mm, gövde kuleleri
+PLATE_T = 3.0                   # mm, plaka kalınlığı
+PLATE_STAND = 3.0               # mm, plaka üstündeki kart standoff'u
+PLATE_R = 4.0                   # mm, plaka köşe yarıçapı
+PLATE_EDGE = 4.0                # mm, en dış delikten plaka kenarına kalan et
+PLATE_TIE = (8.0, 2.6)          # mm, kelepçe yuvası (uzunluk x genişlik)
+# Plakadaki kart deseni. Pi Zero ailesi 58 x 23 mm; muadil kart alınırsa
+# yalnız bu iki sayı değişip tepecan_plaka.stl yeniden üretiliyor.
 BOARD_HOLE_X, BOARD_HOLE_Y = 58.0 / 2, 23.0 / 2     # mm; configure() birime çevirir
+# Kart 37 mm'den derinse plakanın üstünde y'de kaydırılması gerekir: kullanılabilir
+# pencere -20.9 .. +20.8 mm ama plakanın merkezi y=+2.3'te. Eksi değer kartı geriye,
+# alt vida bossuna doğru alır. dogrula.py pencereyi ölçüp yazdırıyor.
+BOARD_OFFSET_Y = 0.0            # mm
 
 # Buton kapağın üzerinde: omuz yerine burada, çünkü kapak ayrı parça ve
 # kablosu doğrudan karta gidiyor - omuzda kanal açmak gerekirdi.
@@ -387,6 +403,8 @@ def configure(height_mm=DEFAULT_HEIGHT):
     global SCALE, WALL, CAV_R, LID_GAP, LEDGE_T
     global SCREW_PILOT, SCREW_FREE, SCREW_HEAD, GROOVE
     global POST_R, POST_PILOT, POST_DEPTH, BOSS_DEPTH, BOARD_HOLE_X, BOARD_HOLE_Y
+    global PLATE_HOLE_X, PLATE_HOLE_Y, PLATE_T, PLATE_STAND, PLATE_R, BOARD_OFFSET_Y
+    global PLATE_EDGE, PLATE_TIE
     global SPK_W, SPK_H, SPK_FIT, SPK_RING
     global BTN_HOLE, BTN_POCKET, BTN_WALL, BTN_GUIDE, BTN_DEPTH
     global BTN_CAP_R, BTN_CAP_T, BTN_FIT
@@ -409,6 +427,14 @@ def configure(height_mm=DEFAULT_HEIGHT):
     SPK_RING = 2.4 / SCALE
     BOARD_HOLE_X = 58.0 / 2 / SCALE
     BOARD_HOLE_Y = 23.0 / 2 / SCALE
+    PLATE_HOLE_X = 44.0 / 2 / SCALE
+    PLATE_HOLE_Y = 28.0 / 2 / SCALE
+    BOARD_OFFSET_Y = 0.0 / SCALE
+    PLATE_T = 3.0 / SCALE
+    PLATE_STAND = 3.0 / SCALE
+    PLATE_R = 4.0 / SCALE
+    PLATE_EDGE = 4.0 / SCALE
+    PLATE_TIE = (8.0 / SCALE, 2.6 / SCALE)
     BTN_HOLE = 2.1 / SCALE
     BTN_POCKET = 3.3 / SCALE
     BTN_WALL = 1.5 / SCALE
@@ -697,11 +723,15 @@ def speaker_mount():
 
 
 def board_posts():
-    """Pi + HAT'in vidalandığı dört kule ve kılavuz delikleri."""
+    """Adaptör plakasının vidalandığı dört genel amaçlı kule.
+
+    Kulelerin aralığı bilerek karttan bağımsız: kart deseni plakanın üstünde,
+    burada değil. 44 x 28 mm, kapak açıklığının rahat içinde kalıyor.
+    """
     posts, holes = [], []
     for sx in (-1, 1):
         for sy in (-1, 1):
-            x, y = sx * BOARD_HOLE_X, BOARD_Y + sy * BOARD_HOLE_Y
+            x, y = sx * PLATE_HOLE_X, BOARD_Y + sy * PLATE_HOLE_Y
             posts.append(inter(
                 creation.cylinder(radius=POST_R, segment=[(x, y, 24), (x, y, BOARD_Z)],
                                   sections=40),
@@ -710,6 +740,66 @@ def board_posts():
                 radius=POST_PILOT,
                 segment=[(x, y, BOARD_Z - POST_DEPTH), (x, y, BOARD_Z + 1)], sections=24))
     return union(*posts), union(*holes)
+
+
+def plate_size():
+    """Plakanın dış ölçüsü: en dış deliği hangisiyse ona göre türetiliyor.
+
+    Böylece Pi Zero deseni (58 x 23) de, daha kare bir muadil (45 x 50 gibi)
+    de aynı kodla, kendi ölçüsünde bir plaka üretiyor.
+    """
+    w = 2.0 * (max(BOARD_HOLE_X, PLATE_HOLE_X) + PLATE_EDGE)
+    d = 2.0 * (max(BOARD_HOLE_Y + abs(BOARD_OFFSET_Y), PLATE_HOLE_Y) + PLATE_EDGE)
+    return w, d
+
+
+def build_plate():
+    """Kart adaptör plakası - ayrı basılır, kartın delik desenini o taşır.
+
+    Altında gövde kulelerine oturan dört serbest delik, üstünde kartın kendi
+    deseninde dört standoff var. Kart değişince yalnız BOARD_HOLE_X/Y değişip
+    bu parça yeniden basılıyor; gövdeye dokunulmuyor.
+
+    Dört köşedeki kelepçe yuvaları parçaya özel değil bilerek: USB ses kartı,
+    amfi modülü, kablo demeti - ne olursa plastik kelepçeyle bağlanıyor, her
+    modül için ayrı yuva modellemeye gerek kalmıyor.
+
+    Yatık basılır, destek istemez; z=0 düzleminde duruyor.
+    """
+    w, d = plate_size()
+    # rbox köşeleri üç eksende birden yuvarlıyor; plakanın altı düz kalmalı,
+    # o yüzden yalnız X/Y kesitinde yuvarlak bir prizma kullanıyoruz.
+    plate = rot(xz_prism(w, d, PLATE_R, 0.0, PLATE_T), 90, (1, 0, 0))
+
+    stands, pilots, cuts = [], [], []
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            bx, by = sx * BOARD_HOLE_X, BOARD_OFFSET_Y + sy * BOARD_HOLE_Y
+            stands.append(creation.cylinder(
+                radius=POST_R,
+                segment=[(bx, by, PLATE_T - 0.4), (bx, by, PLATE_T + PLATE_STAND)],
+                sections=40))
+            pilots.append(creation.cylinder(
+                radius=POST_PILOT,
+                segment=[(bx, by, PLATE_T + PLATE_STAND - POST_DEPTH),
+                         (bx, by, PLATE_T + PLATE_STAND + 1)], sections=24))
+            px, py = sx * PLATE_HOLE_X, sy * PLATE_HOLE_Y
+            cuts.append(creation.cylinder(
+                radius=POST_PILOT + LID_GAP,
+                segment=[(px, py, -1), (px, py, PLATE_T + 1)], sections=24))
+
+    # kelepçe yuvaları: her köşede, deliklerin dışında kalan ette
+    tl, tw = PLATE_TIE
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            x = sx * (w / 2.0 - PLATE_EDGE / 2.0 - tw / 2.0)
+            y = sy * (d / 2.0 - PLATE_EDGE - tl / 2.0)
+            cuts.append(creation.box(
+                extents=(tw, tl, PLATE_T + 2),
+                transform=trimesh.transformations.translation_matrix(
+                    (x, y, PLATE_T / 2.0))))
+
+    return diff(union(plate, *stands), *pilots, *cuts)
 
 
 def rivets():
@@ -902,7 +992,8 @@ def build_all(with_text=True, vents=True, base_trim=2.0):
     body = cut_below(body, base_trim)
 
     return (drop_slivers(solid), drop_slivers(body),
-            drop_slivers(build_lid(vents)), drop_slivers(button_cap()))
+            drop_slivers(build_lid(vents)), drop_slivers(button_cap()),
+            drop_slivers(build_plate()))
 
 
 def report(name, mesh):
@@ -927,13 +1018,15 @@ def main():
           % (args.height, SCALE, WALL * SCALE, 20480))
 
     os.makedirs(args.outdir, exist_ok=True)
-    solid, body, lid, cap = build_all(with_text=not args.no_text, vents=not args.no_vents)
+    solid, body, lid, cap, plate = build_all(with_text=not args.no_text,
+                                             vents=not args.no_vents)
 
     outputs = {
         "tepecan_solid": solid,
         "tepecan_body": body,
         "tepecan_lid": rot(lid, -90, (1, 0, 0)),   # cover flat on the bed, outer face up
         "tepecan_buton": cap,                      # ayrı basılan buton kapağı
+        "tepecan_plaka": plate,                    # kart adaptör plakası
     }
     for name, mesh in outputs.items():
         mesh.apply_scale(SCALE)
@@ -954,6 +1047,16 @@ def main():
                 and len(check.split(only_watertight=False)) == 1 and check.volume > 0):
             raise SystemExit("%s is not a clean printable solid" % path)
         report(name, check)
+
+    # Plaka mutlak mm, kapak açıklığı ise figürle birlikte küçülüyor: küçük
+    # boylarda plaka açıklıktan geçmez. Elektronik kurulum 240 mm'lik bir iş.
+    pw, pd = plate_size()
+    w_open = (HATCH_W - 2 * LEDGE_W) * SCALE
+    h_open = (HATCH_H - 2 * LEDGE_W) * SCALE
+    if np.hypot(pw * SCALE, pd * SCALE) > np.hypot(w_open, h_open) - 2.0:
+        print("UYARI: adaptör plakası (%.0f x %.0f mm) bu boyda kapak "
+              "açıklığından (%.0f x %.0f mm) geçmiyor - elektronik için "
+              "en az 240 mm bas." % (pw * SCALE, pd * SCALE, w_open, h_open))
 
     com = body.center_mass
     print("body centre of mass x/y = %.1f / %.1f mm (footprint check)" % (com[0], com[1]))

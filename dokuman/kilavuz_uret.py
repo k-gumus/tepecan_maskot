@@ -133,7 +133,8 @@ story.append(Paragraph("Konuşan maskot — yapım kılavuzu", ParagraphStyle(
     spaceBefore=4)))
 story.append(Spacer(1, 8))
 story.append(Paragraph(
-    "3D baskı gövde · Raspberry Pi Zero 2 W · yerel yapay zekâ · Türkçe sesli sohbet",
+    "3D baskı gövde · aarch64 tek kart bilgisayar · yerel yapay zekâ · "
+    "Türkçe sesli sohbet",
     ParagraphStyle("cover3", fontName="DejaVu", fontSize=10, leading=15,
                    textColor=MUTED)))
 story.append(Spacer(1, 20))
@@ -147,11 +148,11 @@ story.append(PageBreak())
 h1("1. Ne yapıyoruz")
 p("Maskot dinler, sorulanı yapay zekâya iletir, cevabı içindeki hoparlörden "
   "Türkçe olarak söyler. Ağır iş maskotun içinde değil, ağdaki bir bilgisayarda "
-  "çalışır. Maskotun içindeki Pi'nin tek görevi mikrofonu okumak ve hoparlöre "
+  "çalışır. Maskotun içindeki kartın tek görevi mikrofonu okumak ve hoparlöre "
   "yazmak — bu sayede 512 MB RAM'li küçük bir kart yeter ve token maliyeti oluşmaz.")
 
 code("""
-   MASKOT (Pi Zero 2 W)                    BEYİN SUNUCUSU (bir PC)
+   MASKOT (aarch64 SBC)                    BEYİN SUNUCUSU (bir PC)
    ─────────────────────                   ────────────────────────
    butona basılır
    mikrofon kaydeder      ──── Wi-Fi ───▶  /stt    faster-whisper   (ses → metin)
@@ -167,11 +168,16 @@ h2("Verilen kararlar ve gerekçeleri")
 table(
     ["Karar", "Neden"],
     [["Beyin ayrı bir PC'de",
-      "Pi Zero 2 W'de 512 MB RAM var; en küçük dil modeli bile sığmaz, sığsa "
-      "saniyede 1-3 token üretir. Bir cümle yarım dakika sürerdi."],
-     ["Pi 4 alınmıyor",
-      "85 × 56 mm kart maskotun içine pratikte girmiyor (kapak açıklığı 59 × 62 mm) "
-      "ve kapalı PLA kasada ısınıyor. Çözdüğü tek darboğaz zaten sunucuya taşındı."],
+      "Bu sınıf kartlarda 512 MB - 2 GB RAM var; en küçük dil modeli bile zor "
+      "sığar, sığsa saniyede 1-3 token üretir. Bir cümle yarım dakika sürerdi."],
+     ["Büyük kart alınmıyor",
+      "85 × 56 mm bir kart maskotun içine girmiyor: kapak geçişi 65 × 54 mm ve "
+      "kavitede kart için 41.7 mm derinlik var. Kapalı PLA kasada da ısınıyor. "
+      "Çözdüğü tek darboğaz zaten sunucuya taşındı."],
+     ["Raspberry Pi yerine muadil",
+      "Pi Zero 2 W Türkiye'de bulunamıyor. Kart ince istemci olduğu için marka "
+      "önemli değil; tek şart 64-bit (aarch64), çünkü openWakeWord'ün istediği "
+      "onnxruntime yalnız onun için derleniyor."],
      ["Metin → ses de sunucuda",
       "Piper'ın Türkçe medium sesi Zero 2 W'de gerçek zamandan yavaş kalabiliyor. "
       "Sunucuda çalıştırınca bu risk tamamen kalkar, Pi'ye hazır ses gelir."],
@@ -193,41 +199,59 @@ h1("2. Malzeme listesi")
 p("Fiyatlar kabaca, sadece büyüklük fikri versin diye.")
 table(
     ["#", "Parça", "Neden bu", "≈"],
-    [["1", "Raspberry Pi Zero 2 W (header lehimli)",
-      "Maskotun beyni değil, kulağı ve ağzı. 65 × 30 mm, kasaya sığan tek makul kart.", "$20"],
-     ["2", "ReSpeaker 2-Mics Pi HAT (Seeed)",
-      "Tek kartta 2 mikrofon + ses kodeki + 3 W amfi + buton + 3 RGB LED. "
-      "Pi Zero ile birebir aynı ölçü. Modül sayısını dörtten bire indirir.", "$15"],
-     ["3", "40 × 20 mm oval 4 Ω 3 W hoparlör",
-      "Gövdedeki yuva bu ölçüye göre: ızgara 40 × 20 mm, oturma omzu 42 × 22 mm, "
-      "en fazla 8 mm gövde derinliği. Yuvarlak 40 mm de sığar ama göğüs yazısını "
-      "sıkıştırır.", "$3"],
-     ["4", "microSD 32 GB, A1 sınıfı",
-      "İşletim sistemi. A1 sınıfı olmayan kartlar Pi'yi belirgin yavaşlatır.", "$6"],
-     ["5", "5 V 3 A adaptör + micro-USB kablo",
-      "Pi + amfi tepe akımı ~800 mA. Zayıf adaptör ses bozulmasına yol açar.", "$8"],
-     ["6", "14 × 14 mm alüminyum soğutucu",
+    [["1", "aarch64 SBC (Orange Pi Zero 2W, Radxa Zero vb.)",
+      "Maskotun beyni değil, kulağı ve ağzı: mikrofonu dinler, uyandırma "
+      "kelimesini yakalar, beyin sunucusuna gönderir. Raspberry Pi Zero 2 W "
+      "ilk tercihti ama Türkiye'de bulunamıyor. Şart: 64-bit (aarch64) — "
+      "openWakeWord'ün istediği onnxruntime yalnız bunun için derleniyor. "
+      "Gövdeye en fazla 74 × 30 mm (ya da 71 × 35) kart sığıyor.", "$15"],
+     ["2", "USB ses kartı (CM108/CM119 yongalı)",
+      "Mikrofon girişi + hat çıkışı. Sınıf-uyumlu, yani hiçbir kartta sürücü "
+      "istemiyor. ReSpeaker HAT'in yerini tutuyor: HAT yalnız Raspberry Pi'de "
+      "çalışıyor (seeed-voicecard device-tree overlay'i).", "$4"],
+     ["3", "Elektret mikrofon kapsülü (3.5 mm fişli)",
+      "Ses kartının mic girişine takılır. Kapaktaki havalandırma yarıkları "
+      "(3 × 37 × 4 mm = 449 mm²) sesi geçirmeye yetiyor, ayrı port gerekmiyor.",
+      "$2"],
+     ["4", "PAM8403 amfi modülü",
+      "Ses kartının hat çıkışı hoparlörü süremez. 2 × 3 W D-sınıfı, 5 V'u "
+      "kartın header'ından alıyor.", "$2"],
+     ["5", "Ø30 mm 4 Ω 3 W yuvarlak hoparlör",
+      "Gövdedeki yuva bu ölçüye göre: ızgara Ø30 mm, oturma omzu Ø34.8 mm, "
+      "en fazla 8 mm gövde derinliği. Ø40 mm sığmıyor — göğüs küresel olduğu "
+      "için o ayak izinde oturma omzu kartın önüne giriyor.", "$3"],
+     ["6", "microSD 32 GB, A1 sınıfı",
+      "İşletim sistemi. A1 sınıfı olmayan kartlar kartı belirgin yavaşlatır.", "$6"],
+     ["7", "5 V 3 A adaptör + karta uyan kablo",
+      "Kart + amfi tepe akımı ~800 mA. Zayıf adaptör ses bozulmasına yol açar. "
+      "Kartın girişi USB-C mi micro-USB mi, sipariş ederken bak.", "$8"],
+     ["8", "14 × 14 mm alüminyum soğutucu",
       "Kapalı PLA kasada işlemci sıcaklığını düşürür.", "$1"],
-     ["7", "M2.5 × 8 mm kendinden kılavuzlu vida (4 adet)",
-      "Kartı basılı montaj kulelerine sabitlemek için. Kulelerde Ø2.1 mm "
-      "kılavuz delik hazır, ara pula gerek yok.", "$3"],
-     ["8", "6 × 6 × 4.3 mm tactile switch + ince kablo",
+     ["9", "M2.5 × 8 mm kendinden kılavuzlu vida (8 adet)",
+      "Dördü adaptör plakasını gövde kulelerine, dördü kartı plakanın "
+      "standoff'larına. Kılavuz delikleri Ø2.1 mm hazır, ara pula gerek yok.", "$3"],
+     ["10", "6 × 6 × 4.3 mm tactile switch + ince kablo",
       "Sırt kapağındaki bas-konuş butonu. Uyandırma kelimesi çalışırken de "
       "yedek kalıyor. Basılan kapağı (tepecan_buton.stl) sen basıyorsun.", "$1"],
-     ["9", "M3 × 8 kendinden kılavuzlu vida (2 adet)",
+     ["11", "M3 × 8 kendinden kılavuzlu vida (2 adet)",
       "Sırt kapağını tutturmak için. Kasada yuvaları hazır.", "$1"],
-     ["10", "PLA filament, mavi (~400 g)",
+     ["12", "Plastik kelepçe (kablo bağı, birkaç adet)",
+      "USB ses kartı ve amfi modülünü adaptör plakasının köşelerindeki "
+      "yuvalara bağlamak için. Modüllere özel yuva yok, bilerek.", "$1"],
+     ["13", "PLA filament, mavi (~400 g)",
       "Gövde. Güneşte/araçta kalacaksa PETG tercih et.", "$12"],
      ["—", "Beyin sunucusu: kulüpte zaten olan bir PC",
       "16 GB RAM yeterli. 8-12 GB VRAM'li bir ekran kartı varsa cevaplar "
       "üç kat hızlanır.", "—"]],
     [8 * mm, 42 * mm, 92 * mm, 14 * mm])
 
-note("HAT bulunamazsa yedek: INMP441 (I2S mikrofon) + MAX98357A (I2S amfi), ikisi ~$6. "
-     "Daha ucuz ama iki I2S cihazını aynı hatta çalıştırmak device-tree ayarı ister ve "
-     "butonu, LED'leri ayrıca eklemen gerekir. HAT'in kendi zorluğu da var: seeed-voicecard "
-     "sürücüsü güncel Raspberry Pi OS'ta sorun çıkarabiliyor, bakımlı bir fork gerekebilir. "
-     "Hangisini seçersen seç, bunu bilerek seç.")
+note("Kartı ararken tek kırmızı çizgi 64-bit: ARMv6 (Raspberry Pi Zero W 1. nesil) "
+     "ve ARMv7 kartlarda onnxruntime/tflite tekerleği yok, uyandırma kelimesi "
+     "çalışmaz. Amazon'da 2.000-2.400 TL'ye görünen Pi Zero W / Zero WH'ler bu "
+     "gruptan, alma. Raspberry Pi Zero 2 W bulunursa hepsini o karşılar; o zaman "
+     "ReSpeaker 2-Mics Pi HAT alıp 2, 3 ve 4 numaralı satırları atlayabilirsin, "
+     "ama HAT'in seeed-voicecard sürücüsü güncel Raspberry Pi OS'ta sorun "
+     "çıkarabiliyor. USB yolu daha çok modül ama sıfır sürücü işi.")
 
 # ==========================================================================
 story.append(PageBreak())
@@ -236,11 +260,15 @@ h2("Basılacak dosyalar")
 table(
     ["Dosya", "Ne", "Adet"],
     [["tepecan_body.stl", "İçi boş gövde. Sırtta açıklık ve kapak oturma kenarı, "
-      "iki vida boss'u, hoparlör adası, dört kart kulesi, kablo yuvası.", "1"],
+      "iki vida boss'u, hoparlör adası, dört genel amaçlı kart kulesi, "
+      "kablo yuvası.", "1"],
      ["tepecan_lid.stl", "Sırt kapağı. Havalandırma yarıkları ve havşalı vida "
       "delikleriyle, baskı pozisyonunda.", "1"],
      ["tepecan_buton.stl", "Kapaktaki butonun kapağı: Ø10 mm başlık, 5 mm sap. "
       "Yatık basılır, destek istemez.", "1"],
+     ["tepecan_plaka.stl", "Kart adaptör plakası: altı gövde kulelerine oturur, "
+      "üstünde kartın kendi delik deseninde standoff'lar var. 66 × 36 × 6 mm, "
+      "~20 dakika. Kart değişirse yalnız bu yeniden basılır.", "1"],
      ["tepecan_solid.stl", "İçi dolu vitrin figürü. Elektronik koymayacaksan "
       "bunu bas, diğerlerini atla.", "0-1"]],
     [34 * mm, 106 * mm, 16 * mm], mono_cols=(0,))
@@ -268,18 +296,25 @@ h2("Gövdedeki elektronik detayları")
 p("Bunların hepsi modelde hazır; ölçüler <font face='Mono'>govde/dogrula.py</font> "
   "ile her baskı öncesi ölçülüyor.")
 bullets([
-    "<b>Göğüs ızgarası</b> — 40 × 20 mm oval alan içinde 4 yatay yarık, 2.7 mm "
-    "yükseklik. IEEE / YEDİTEPE yazısı üstte kalıyor.",
+    "<b>Göğüs ızgarası</b> — Ø30 mm dairesel alan içinde 5 yatay yarık, 2.7 mm "
+    "yükseklik, merkezi tabandan 65 mm'de. YEDİTEPE yazısına 3.2 mm pay var.",
     "<b>Hoparlör yuvası</b> — ızgaranın arkasında düz omuzlu bir ada: göğüs duvarı "
-    "küresel olduğu için düz yüzlü bir hoparlör ona yaslanamıyor, ada 6.4 mm'lik "
-    "sarkmayı dolduruyor. Cep 42 × 22 mm, omuz 2.4 mm, yanal tutuş 4 mm.",
-    "<b>Kart montaj kuleleri</b> — Ø6 mm, dört adet, Pi Zero 2 W delik düzenine göre "
-    "58 × 23 mm. Üst yüzeyleri tabandan 61 mm'de, tepelerinde M2.5 için Ø2.1 mm "
-    "kılavuz delik, 8 mm derin.",
-    "<b>Kapak açıklığı</b> — dıştan 73 × 62 mm, oturma kenarından geçiş 65 × 54 mm. "
-    "Genişliği kartın kendisi değil, kartı vidalayan tornavida belirledi: kule "
-    "delikleri x = ±29 mm'de ve açıklığın alt köşesine yakın; bu ölçüde kenara "
-    "3.7 mm kalıyor, tornavida rahat giriyor.",
+    "küresel olduğu için düz yüzlü bir hoparlör ona yaslanamıyor, ada sarkmayı "
+    "dolduruyor. Cep Ø32 mm, omuz 2.4 mm. Ø40 mm hoparlör bu yüzden sığmıyor: "
+    "o ayak izinde omuz y = 11.9 mm'ye kadar geriliyor ve kartın önüne giriyor.",
+    "<b>Kart montaj kuleleri</b> — Ø6 mm, dört adet, <b>karttan bağımsız</b> "
+    "44 × 28 mm aralıkta. Üst yüzeyleri tabandan 61 mm'de, tepelerinde M2.5 için "
+    "Ø2.1 mm kılavuz delik, 8 mm derin. Kartın kendi delik deseni bu kulelerde "
+    "değil, üstlerine vidalanan adaptör plakasında.",
+    "<b>Adaptör plakası</b> — 66 × 36 × 6 mm ayrı parça. Gövdeyi kart seçiminden "
+    "kurtarıyor: kart değişirse 30-45 saatlik gövde değil, 20 dakikalık plaka "
+    "yeniden basılıyor. Köşelerindeki kelepçe yuvalarına USB ses kartı ve amfi "
+    "modülü bağlanıyor.",
+    "<b>Kapak açıklığı</b> — dıştan 73 × 62 mm, oturma kenarından geçiş 65 × 54 mm, "
+    "köşegen 85 mm. Genişliği kart değil, kartı vidalayan tornavida belirledi: "
+    "plakadaki vidalar x = ±29 mm'de ve açıklığın alt köşesine yakın; bu ölçüde "
+    "kenara 3.7 mm kalıyor, tornavida rahat giriyor. Plaka açıklıktan yan "
+    "yatırılarak geçiyor (köşegen 75 < 85 mm).",
     "<b>Vida boss'ları</b> — Ø18.7 mm, kavite yüzeyinden 12 mm içeri; M3 vidaya "
     "kapak eti ile birlikte 15 mm diş kalıyor.",
     "<b>Buton yuvası</b> — sırt kapağının iç yüzünde: 6.6 mm kare cep, 4.6 mm derin, "
@@ -288,7 +323,7 @@ bullets([
     "fişi kıvrılmadan geçiyor.",
 ])
 
-note("Işıklı gözler denenmedi: HAT'teki RGB LED'leri boyundan geçen bir ışık "
+note("Işıklı gözler denenmedi: RGB LED'leri boyundan geçen bir ışık "
      "kanalıyla gözlere taşımak, gözleri şeffaf filamentten ayrı basmayı ve kafayı "
      "iki parça yapmayı gerektiriyor. Maskotu en canlı gösterecek şey bu, ama "
      "yapımı belirgin zorlaştırdığı için modele girmedi.")
@@ -307,20 +342,25 @@ p("İç boşluk elipsoid olduğu için kutu ölçüsünden cömert: en geniş ye
 code("""
         ÖN (yüz)                              ARKA (kapak)
    ┌──────────────────────────────────────────────────────┐
-   │   ○        ○     mikrofon portları (HAT üzerinde)     │  z ≈ 100-115 mm
-   │  ╔════════════╗                                      │
-   │  ║  HOPARLÖR  ║  40 x 20 mm oval, öne bakar,          │  z = 57-77 mm
-   │  ║  + adası   ║  göğüs ızgarasından konuşur           │
-   │  ╚════════════╝            ┌───────────────────────┐  │
-   │                            │  Pi Zero 2 W + HAT    │  │  z = 61-83 mm
-   │        4 kule ─────────────│  yatay, kule üstünde  │  │
-   │        z = 34-61 mm        └───────────────────────┘  │
-   │                                  vida bossu ● z=59 mm │
-   │   kablo yuvası ─────────────────────────────────▶     │  z = 38 mm
+   │  ╔══════════╗                                        │
+   │  ║ HOPARLÖR ║  Ø30 mm, öne bakar,                    │  z = 50-80 mm
+   │  ║ + adası  ║  göğüs ızgarasından konuşur            │
+   │  ╚══════════╝   ┌────────────────────────────────┐   │
+   │                 │  KART (aarch64 SBC)            │   │  z = 67-85 mm
+   │                 ├────────────────────────────────┤   │
+   │                 │  ADAPTÖR PLAKASI  66 x 36 mm   │   │  z = 61-67 mm
+   │      4 kule ────┴────────────────────────────────┘   │
+   │      z = 34-61 mm                                    │
+   │                 USB ses kartı ve amfi: plakanın      │
+   │                 köşelerine kelepçeyle bağlanır       │
+   │                                  vida bossu * z=59 mm│
+   │   kablo yuvasi ------------------------------->      │  z = 38 mm
    └──────────────────────────────────────────────────────┘
 
-   Kart y ekseninde hoparlör adasının 5 mm arkasında, alt vida bossunun
-   9 mm önünde duruyor. Her yönde en az 1 mm boşluk ölçüldü.
+   Kart için y penceresi -20.9 .. +20.8 mm (41.7 mm derinlik): önünde
+   hoparlör adası, arkasında alt vida bossu. Kart 30 mm derinse en fazla
+   74.5 mm, 35 mm derinse 71.0 mm genişlikte olabilir; plakanın üstünde
+   45 mm yükseklik var. dogrula.py bu sayıları her baskı öncesi ölçüyor.
 """)
 
 picture("govde/preview/tepecan_ic.png", 150 * mm,
@@ -328,23 +368,34 @@ picture("govde/preview/tepecan_ic.png", 150 * mm,
         "Sağda kapak açıkken bölmenin içi.")
 
 h2("Montaj sırası")
+p("Gövde baskısı karta bağlı değil: plakayı kart gelmeden de basabilirsin, ama "
+  "delik desenini kartın kendisinden kumpasla ölçüp üretmek en güvenlisi.")
 bullets([
     "Gövdeyi ve kapağı bas, destekleri temizle. Kapağın açıklığa boşlukla "
     "oturduğunu kuru kuruya dene.",
+    "Kart elindeyken montaj deliklerinin aralığını kumpasla ölç. "
+    "<font face='Mono'>tepecan_model.py</font> içinde BOARD_HOLE_X / BOARD_HOLE_Y "
+    "değerlerini gir (yarı ölçü: 58 × 23 mm delik için 58/2 ve 23/2), yeniden üret, "
+    "<font face='Mono'>tepecan_plaka.stl</font>'i bas. Kart 37 mm'den derinse "
+    "BOARD_OFFSET_Y ile plakanın üstünde geriye kaydır.",
     "Hoparlörü göğüs ızgarasının arkasındaki adaya, düz omza yüzü öne bakacak "
     "şekilde otur ve kenarından yapıştır. <b>Arkasını olabildiğince kapalı tut</b> "
     "— omzun çevresini silikonla sızdırmaz yapmak ses kalitesini gözle görülür "
     "artırır, bedava kazançtır.",
-    "HAT'i Pi'nin üstüne otur, ikisini birlikte dört kuleye M2.5 vidalarla sabitle. "
-    "Kart yatay durur, delikleri kulelerin Ø2.1 mm kılavuz deliklerine denk gelir. "
-    "Micro-USB portları kablo yuvasına baksın, böylece güç kablosu kıvrılmadan çıkar.",
-    "İşlemcinin üstüne soğutucuyu yapıştır (HAT'i takmadan önce yap, sonra elin girmez).",
-    "Hoparlör kablosunu HAT'in JST hoparlör çıkışına tak.",
+    "İşlemcinin üstüne soğutucuyu yapıştır (kartı plakaya vidalamadan önce yap, "
+    "sonra elin girmez).",
+    "Kartı plakanın üstündeki dört standoff'a M2.5 vidalarla sabitle. USB ses "
+    "kartını ve PAM8403'ü plakanın köşe yuvalarına kelepçeyle bağla, kabloları "
+    "kısa kes. Bu işi gövdenin dışında yap — plaka avucunda dururken çok rahat.",
+    "Hazır plakayı açıklıktan <b>yan yatırarak</b> içeri sok (düz geçmez, köşegen "
+    "75 mm) ve dört M2.5 vidayla gövde kulelerine sabitle. Kartın güç girişi "
+    "kablo yuvasına baksın.",
+    "Hoparlör kablosunu PAM8403'ün çıkışına, mikrofonu ses kartının mic girişine tak.",
     "Buton kapağını (tepecan_buton.stl) sırt kapağının <b>dışından</b> deliğe geçir. "
     "Switch'i kapağın iç yüzündeki cebe, pistonu kapağa bakacak şekilde bastır; sap "
-    "tam pistona dayanır. İki telini HAT'in GPIO17 ve GND pinlerine bağla. "
+    "tam pistona dayanır. İki telini kartın bir GPIO hattına ve GND'ye bağla. "
     "Telleri kapağı kapatırken sıkışmayacak kadar uzun bırak.",
-    "Güç kablosunu alt sırttaki yuvadan geçir, Pi'ye tak.",
+    "Güç kablosunu alt sırttaki yuvadan geçir, karta tak.",
     "Kapağı iki M3 vidayla kapat. Vidalar havşalı deliklere oturur, başları yüzeyle "
     "aynı hizada kalır.",
 ])
@@ -352,17 +403,25 @@ bullets([
 h2("Kablolama")
 table(
     ["Nereden", "Nereye", "Not"],
-    [["Hoparlör (+/−)", "HAT üzerindeki JST hoparlör çıkışı", "Kutup önemli değil, "
-      "tek hoparlör var"],
-     ["Buton bacak 1", "GPIO17", "Kapaktaki switch; kodda TEPECAN_BUTTON_PIN"],
+    [["Elektret mikrofon", "USB ses kartı, mic girişi", "3.5 mm fiş"],
+     ["USB ses kartı, hat çıkışı", "PAM8403 girişi", "3.5 mm fiş ya da iki tel"],
+     ["PAM8403 çıkışı", "Hoparlör (+/−)", "Kutup önemli değil, tek hoparlör var"],
+     ["PAM8403 besleme", "Kartın 5 V ve GND pini", "Amfi 5 V ister, 3.3 V değil"],
+     ["USB ses kartı", "Kartın USB portu", "USB-C ise araya adaptör gerekir"],
+     ["Buton bacak 1", "Bir GPIO hattı", "Kodda TEPECAN_BUTTON_PIN / "
+      "TEPECAN_BUTTON_CHIP"],
      ["Buton bacak 2", "GND", ""],
-     ["5 V adaptör", "Pi'nin PWR IN micro-USB portu", "Veri portuna değil"],
-     ["HAT", "Pi 40 pin header", "Doğrudan oturur, ara kablo yok"]],
+     ["5 V adaptör", "Kartın güç girişi", "Varsa veri portuna değil, güç portuna"]],
     [34 * mm, 62 * mm, 60 * mm])
+
+note("Ses cihazını seçmeyi unutma: USB ses kartı çoğu kartta ALSA'nın varsayılanı "
+     "olmuyor. <font face='Mono'>python3 -m sounddevice</font> cihazları listeler, "
+     "sonra <font face='Mono'>TEPECAN_MIC</font> ve <font face='Mono'>TEPECAN_SPK</font> "
+     "ortam değişkenlerine indeksi ya da adın bir parçasını yaz.")
 
 picture("dokuman/devre_semasi.png", 150 * mm, "Bağlantı şeması.")
 
-note("Isı: kapalı PLA kasada Zero 2 W boşta 50-55 °C civarında kalır. Kapaktaki "
+note("Isı: kapalı PLA kasada bu sınıf bir kart boşta 50-55 °C civarında kalır. Kapaktaki "
      "üç yarık ve kablo yuvası hafif hava akışı sağlıyor, soğutucuyla birlikte "
      "sorun çıkarmaz. PLA 60 °C dolayında yumuşamaya başlar; maskot güneşte veya "
      "araçta kalacaksa gövdeyi PETG bas.")
@@ -415,18 +474,31 @@ story.append(PageBreak())
 h1("6. Maskot (Pi) kurulumu")
 p("Raspberry Pi OS Lite, 64 bit. Kurulum sırasında Wi-Fi ve SSH'ı aç.")
 
-h2("Ses kartı sürücüsü")
+h2("Ses kurulumu")
+p("USB ses kartı sınıf-uyumlu, yani sürücü kurulumu yok. Tek iş doğru cihazı "
+  "seçmek.")
 code("""
-sudo apt update && sudo apt install -y git python3-pip libportaudio2
+sudo apt update && sudo apt install -y python3-pip libportaudio2
 
-# ReSpeaker 2-Mics Pi HAT sürücüsü (bakımlı fork):
-git clone https://github.com/HinTak/seeed-voicecard
-cd seeed-voicecard && sudo ./install.sh && sudo reboot
+# Kart görünüyor mu:
+arecord -l          # USB ses kartı listede olmalı
+aplay -l
 
-# Dönüşte kartın göründüğünü doğrula:
-arecord -l          # seeed-2mic-voicecard listede olmalı
+# Kayıt ve çalma testi:
 arecord -d 3 -f cd deneme.wav && aplay deneme.wav
+
+# Python tarafında hangi indeks olduğunu gör:
+python3 -m sounddevice
+
+# Sonra indeksi (ya da adın bir parçasını) ortam değişkenine yaz:
+export TEPECAN_MIC="USB"
+export TEPECAN_SPK="USB"
 """)
+
+note("Mikrofon sesi kısık gelirse <font face='Mono'>alsamixer</font> ile USB "
+     "kartını seç (F6) ve Mic ile Capture seviyelerini yükselt; birçok CM108 "
+     "dongle sıfır kazançla geliyor.")
+
 
 h2("Tepecan")
 code("""
@@ -516,8 +588,13 @@ h1("9. Test ve sorun giderme")
 table(
     ["Belirti", "Muhtemel sebep", "Ne yapmalı"],
     [["Hiç ses kaydedilmiyor",
-      "Ses kartı sürücüsü kurulmamış",
-      "arecord -l çıktısında seeed-2mic-voicecard var mı bak"],
+      "Yanlış ses cihazı seçili",
+      "arecord -l ve python3 -m sounddevice ile USB kartını bul, "
+      "TEPECAN_MIC'e yaz"],
+     ["Buton çalışmıyor",
+      "gpiozero yalnız Raspberry Pi'de çalışır",
+      "python-periphery kurulu mu bak; TEPECAN_BUTTON_CHIP ve "
+      "TEPECAN_BUTTON_PIN'i kartının pin haritasına göre ayarla"],
      ["Kayıt hemen bitiyor",
       "VAD gürültüyü konuşma sanıyor ya da mikrofon sessiz",
       "alsamixer ile giriş seviyesini yükselt; kodda Vad(2) yerine Vad(1) dene"],
@@ -526,7 +603,7 @@ table(
       "Vad(3) yap; SILENCE_MS değerini 600'e düşür"],
      ["STT hatası / bağlanamıyor",
       "Sunucu adresi yanlış veya güvenlik duvarı",
-      "Pi'den curl http://tepecan-beyin.local:8000/health dene"],
+      "karttan curl http://tepecan-beyin.local:8000/health dene"],
      ["Cevap geliyor ama ses yok",
       "Piper modeli sunucuda bulunamıyor",
       "Sunucu günlüğüne bak; PIPER_MODEL yolunu tam ver"],

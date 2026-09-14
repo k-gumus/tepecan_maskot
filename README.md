@@ -32,14 +32,14 @@ dokuman/      yapım kılavuzu (PDF), bağlantı şeması, üretim scriptleri
 ## Nasıl çalışıyor
 
 ```
-   MASKOT (Pi Zero 2 W)                    BEYİN SUNUCUSU (bir PC)
+   MASKOT (aarch64 SBC)                    BEYİN SUNUCUSU (bir PC)
    "Hey Tepecan" / buton
    mikrofon kaydeder      ──── Wi-Fi ───▶  /stt    faster-whisper   (ses → metin)
                                            :11434  Ollama, qwen3:4b (cevabı üretir)
    hoparlör çalar         ◀─── Wi-Fi ────  /tts    Piper            (metin → ses)
 ```
 
-Maskotun içindeki Pi'nin tek işi mikrofonu okuyup hoparlöre yazmak. Ses→metin,
+Maskotun içindeki kartın tek işi mikrofonu okuyup hoparlöre yazmak. Ses→metin,
 dil modeli ve metin→ses, ağdaki bir bilgisayarda çalışır. Bu yüzden 512 MB
 RAM'li küçük bir kart yetiyor ve kullanım başına maliyet oluşmuyor.
 
@@ -68,6 +68,7 @@ python3 dogrula.py                       # elektronik gerçekten sığıyor mu
 | `stl/tepecan_body.stl` | İçi boş gövde — sırt açıklığı, kapak kenarı, vida boss'ları, hoparlör adası, kart kuleleri |
 | `stl/tepecan_lid.stl` | Sırt kapağı, baskı pozisyonunda |
 | `stl/tepecan_buton.stl` | Kapaktaki butonun kapağı (Ø10 mm başlık, 5 mm sap) |
+| `stl/tepecan_plaka.stl` | Kart adaptör plakası (66 × 36 × 6 mm, ~20 dk) |
 | `stl/tepecan_solid.stl` | İçi dolu vitrin figürü (elektronik yoksa bunu bas) |
 
 Figür tasarım biriminde modellenip export'ta ölçekleniyor; cidar kalınlığı,
@@ -78,17 +79,26 @@ Script her STL'i yazdıktan sonra dosyayı geri okuyup kapalı (watertight),
 tutarlı normalli, tek parça ve pozitif hacimli olduğunu doğruluyor; geçmezse
 hata verip duruyor.
 
-`dogrula.py` bir adım öteye gidiyor: gerçek parçaların zarflarını (65 × 30 × 22 mm
-kart + HAT, 40 × 20 mm oval hoparlör, 6 × 6 × 4.3 mm switch) basılmış STL'in
-içine yerleştirip boolean kesişime bakıyor. Sıfır olmayan her kesişim, o parçanın
-gövdeye girmediği anlamına geliyor.
+`dogrula.py` bir adım öteye gidiyor: gerçek parçaların zarflarını (65 × 30 × 18 mm
+kart, Ø30 mm hoparlör, 6 × 6 × 4.3 mm switch) basılmış STL'in içine yerleştirip
+boolean kesişime bakıyor. Sıfır olmayan her kesişim, o parçanın gövdeye girmediği
+anlamına geliyor. Hangi kartın alınacağı belli olmadığı için kavitenin kabul
+ettiği en büyük kart zarfını da ölçüp yazdırıyor.
+
+**Kart gövdeye kilitli değil.** Gövdede yalnız genel amaçlı dört kule var;
+kartın kendi delik deseni, ayrı basılan `tepecan_plaka.stl` üzerinde. Kart
+değişirse 30-45 saatlik gövde değil, 20 dakikalık plaka yeniden basılıyor —
+`BOARD_HOLE_X` / `BOARD_HOLE_Y` (gerekirse `BOARD_OFFSET_Y`) değiştirilip
+yeniden üretiliyor.
 
 | İç ölçü | Değer |
 |---|---|
 | Kapak açıklığı / geçiş | 73 × 62 mm / 65 × 54 mm |
-| Kart kuleleri | Ø6 mm, 58 × 23 mm aralık, üstleri tabandan 61 mm'de |
+| Gövde kuleleri | Ø6 mm, 44 × 28 mm aralık (karttan bağımsız), üstleri tabandan 61 mm'de |
 | Kule kılavuz deliği | Ø2.1 mm × 8 mm (M2.5 kendinden kılavuzlu) |
-| Hoparlör yuvası | ızgara 40 × 20 mm, cep 42 × 22 mm, düz omuz |
+| Adaptör plakası | 66 × 36 × 6 mm, üstünde kartın kendi deseni |
+| Kart için yer | 74.5 × 30 mm (ya da 71 × 35), plaka üstünde 45 mm yükseklik |
+| Hoparlör yuvası | ızgara Ø30 mm, cep Ø32 mm, düz omuz |
 | Kapak vidası | 2 × M3, Ø18.7 mm boss, 12 mm derin |
 | Buton | kapakta, Ø4.2 mm delik + 6.6 mm kare cep |
 | Kablo yuvası | 15.6 × 7.8 mm, tabandan 38 mm'de |
@@ -113,11 +123,15 @@ pip install -r requirements.txt
 uvicorn beyin:app --host 0.0.0.0 --port 8000
 ```
 
-**Maskot** (Raspberry Pi Zero 2 W):
+**Maskot** (aarch64 SBC — Orange Pi Zero 2W vb.; 64-bit Linux şart):
 
 ```bash
 cd yazilim/maskot
 pip install -r requirements.txt
+
+python3 -m sounddevice          # USB ses kartının indeksini bul
+export TEPECAN_MIC="USB"        # indeks ya da adın bir parçası
+export TEPECAN_SPK="USB"
 python3 tepecan.py
 ```
 

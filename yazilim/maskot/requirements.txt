@@ -2,7 +2,8 @@ sounddevice
 webrtcvad
 numpy
 requests
-gpiozero
+gpiozero         # yalnızca Raspberry Pi'de; muadil kartta periphery kullanılıyor
+python-periphery # Pi dışı kartlarda buton (libgpiod)
 openwakeword     # uyandırma kelimesi ("Hey Tepecan")
 onnxruntime      # openwakeword bunu kullanıyor
 anthropic        # yalnızca TEPECAN_LLM_BACKEND=claude kullanacaksan
