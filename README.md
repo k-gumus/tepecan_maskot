@@ -70,6 +70,7 @@ python3 dogrula.py                       # elektronik gerçekten sığıyor mu
 | `stl/tepecan_buton.stl` | Kapaktaki butonun kapağı (Ø10 mm başlık, 5 mm sap) |
 | `stl/tepecan_plaka.stl` | Kart adaptör plakası (66 × 36 × 6 mm, ~20 dk) |
 | `stl/tepecan_solid.stl` | İçi dolu vitrin figürü (elektronik yoksa bunu bas) |
+| `stl/tepesu.stl` | Tepesu: elektroniksiz ikiz, kaldırdığı elinde QR kartı klipsi |
 
 Figür tasarım biriminde modellenip export'ta ölçekleniyor; cidar kalınlığı,
 vida delikleri ve kapak boşluğu gibi mutlak kalması gereken ölçüler önce bu

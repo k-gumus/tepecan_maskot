@@ -374,6 +374,15 @@ BOARD_OFFSET_Y = 0.0            # mm
 # kablosu doğrudan karta gidiyor - omuzda kanal açmak gerekirdi.
 BTN_X, BTN_Z = -14.0, 46.0
 
+# Tepesu: aynı figürün elektroniksiz, pembe basılan ikizi. Tek farkı ellerine
+# açılan kart yuvası - kulübün QR kartını tutuyor. Ölçüler mutlak mm.
+CARD_W = 34.0                   # mm, klipsin genişliği
+CARD_T = 1.6                    # mm, yuva kalınlığı (lamine kart / kalın kağıt)
+CARD_H = 26.0                   # mm, klipsin yüksekliği
+# Klipsin el içindeki yeri - tasarım birimi, çünkü el de tasarım biriminde.
+CLIP_Y = (8.0, 14.0)            # avucun önünde, parmak uçlarının dışında
+CLIP_Z = 14.0
+
 CHEST_TOP = "IEEE"
 CHEST_BOTTOM = "YEDİTEPE"
 SHOULDER_BADGE = "7"
@@ -411,7 +420,7 @@ def configure(height_mm=DEFAULT_HEIGHT):
     global SCREW_PILOT, SCREW_FREE, SCREW_HEAD, GROOVE
     global POST_R, POST_PILOT, POST_DEPTH, BOSS_DEPTH, BOARD_HOLE_X, BOARD_HOLE_Y
     global PLATE_HOLE_X, PLATE_HOLE_Y, PLATE_T, PLATE_STAND, PLATE_R, BOARD_OFFSET_Y
-    global PLATE_EDGE, PLATE_TIE
+    global PLATE_EDGE, PLATE_TIE, CARD_W, CARD_T, CARD_H
     global SPK_W, SPK_H, SPK_FIT, SPK_RING
     global BTN_HOLE, BTN_POCKET, BTN_WALL, BTN_GUIDE, BTN_DEPTH
     global BTN_CAP_R, BTN_CAP_T, BTN_FIT
@@ -440,6 +449,9 @@ def configure(height_mm=DEFAULT_HEIGHT):
     PLATE_T = 3.0 / SCALE
     PLATE_STAND = 3.0 / SCALE
     PLATE_R = 4.0 / SCALE
+    CARD_W = 34.0 / SCALE
+    CARD_T = 1.6 / SCALE
+    CARD_H = 26.0 / SCALE
     PLATE_EDGE = 4.0 / SCALE
     PLATE_TIE = (10.0 / SCALE, 3.6 / SCALE)
     BTN_HOLE = 2.1 / SCALE
@@ -812,6 +824,30 @@ def build_plate():
     return diff(union(plate, *stands), *pilots, *cuts)
 
 
+def card_clip():
+    """Tepesu'nun kaldırdığı ele, QR kartını tutan klips. (ekle, kes) döner.
+
+    Ele yuva KESMEK işe yaramıyor: ince bir kanalı parmaklar boyunca geçirmek
+    uçlarını gövdeden koparıp modeli beş ayrı parçaya bölüyor (ölçüldü). Onun
+    yerine avucun önüne ince duvarlı bir klips ekleniyor ve yuva klipsin
+    içinde açılıyor - parmaklara hiç dokunulmuyor, model tek parça kalıyor.
+
+    Yalnız sağ (kaldırılmış) elde: sol el aşağı bakıyor, oradan çıkan kart
+    bacağa giriyor.
+    """
+    shoulder, elbow, wrist = ARM_RIGHT
+    wrist = np.asarray(wrist, dtype=float)
+    forward = unit(wrist - np.asarray(elbow, dtype=float))
+    fr = frame(wrist, forward, (0, 1, 0))
+
+    y0, y1 = CLIP_Y
+    block = rbox((CARD_W, y1 - y0, CARD_H), (0.0, (y0 + y1) / 2.0, CLIP_Z), 1.2 / SCALE)
+    # Yuva klipsin üstünden taşıyor ki kart yukarıdan sokulabilsin.
+    slot = creation.box(extents=(CARD_W - 3.0 / SCALE, CARD_T, CARD_H + 30.0 / SCALE))
+    slot.apply_translation((0.0, (y0 + y1) / 2.0, CLIP_Z + 15.0 / SCALE))
+    return placed(block, fr), placed(slot, fr)
+
+
 def rivets():
     """Small studs, clipped to an offset of the torso so they stay attached."""
     studs = []
@@ -994,6 +1030,9 @@ def build_all(with_text=True, vents=True, base_trim=2.0):
     outer = build_outer(with_text)
 
     solid = cut_below(diff(outer, speaker_grille()), base_trim)
+    # Tepesu: ızgarasız, kavitesiz, kaldırdığı elinde kart klipsi olan ikiz
+    clip_add, clip_cut = card_clip()
+    tepesu = cut_below(diff(union(outer, clip_add), clip_cut), base_trim)
 
     posts, post_holes = board_posts()
     body = diff(outer, cavity_solid(), hatch_prism())
@@ -1003,7 +1042,7 @@ def build_all(with_text=True, vents=True, base_trim=2.0):
 
     return (drop_slivers(solid), drop_slivers(body),
             drop_slivers(build_lid(vents)), drop_slivers(button_cap()),
-            drop_slivers(build_plate()))
+            drop_slivers(build_plate()), drop_slivers(tepesu))
 
 
 def report(name, mesh):
@@ -1028,8 +1067,8 @@ def main():
           % (args.height, SCALE, WALL * SCALE, 20480))
 
     os.makedirs(args.outdir, exist_ok=True)
-    solid, body, lid, cap, plate = build_all(with_text=not args.no_text,
-                                             vents=not args.no_vents)
+    solid, body, lid, cap, plate, tepesu = build_all(with_text=not args.no_text,
+                                                     vents=not args.no_vents)
 
     outputs = {
         "tepecan_solid": solid,
@@ -1037,6 +1076,7 @@ def main():
         "tepecan_lid": rot(lid, -90, (1, 0, 0)),   # cover flat on the bed, outer face up
         "tepecan_buton": cap,                      # ayrı basılan buton kapağı
         "tepecan_plaka": plate,                    # kart adaptör plakası
+        "tepesu": tepesu,                          # elektroniksiz ikiz, kart yuvalı
     }
     for name, mesh in outputs.items():
         mesh.apply_scale(SCALE)
