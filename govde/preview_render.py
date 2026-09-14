@@ -85,6 +85,29 @@ def main():
     view(axes[2], lid, 200, elev=35, color=(0.85, 0.55, 0.15), title="cover, print orientation")
     plt.tight_layout()
     fig.savefig(os.path.join(out, "tepecan_hatch.png"), dpi=115, facecolor=BG)
+
+    # iç yerleşim: gövdeyi kesip elektroniğin oturduğu yeri göster
+    def cut_at(mesh, axis, keep_positive, at):
+        e = [400.0, 400.0, 400.0]
+        t = [0.0, 0.0, 0.0]
+        t[axis] = at + (-200.0 if keep_positive else 200.0)
+        box = trimesh.creation.box(
+            extents=e, transform=trimesh.transformations.translation_matrix(t))
+        return trimesh.boolean.difference([mesh, box], engine="manifold")
+
+    fig, axes = plt.subplots(1, 2, figsize=(12, 6.6), facecolor=BG)
+    for ax in axes:
+        ax.set_facecolor(BG)
+    view(axes[0], cut_at(body, 0, True, 0.0), 90, elev=3,
+         title="dikey kesit — hoparlör adası, kart kuleleri, vida boss'ları")
+    axes[0].set_xlim(-45, 45)
+    axes[0].set_ylim(20, 130)
+    view(axes[1], cut_at(body, 1, True, -14.0), 196, elev=20,
+         title="bölme — kapak açıkken içeriden")
+    axes[1].set_xlim(-46, 46)
+    axes[1].set_ylim(18, 128)
+    plt.tight_layout()
+    fig.savefig(os.path.join(out, "tepecan_ic.png"), dpi=115, facecolor=BG)
     print("wrote previews to", out)
 
 

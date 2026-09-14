@@ -39,7 +39,24 @@ OLLAMA_MODEL = os.getenv("TEPECAN_MODEL", "qwen3:4b")
 LLM_BACKEND = os.getenv("TEPECAN_LLM_BACKEND", "ollama")   # ollama | claude
 CLAUDE_MODEL = "claude-opus-5"
 
-BUTTON_PIN = int(os.getenv("TEPECAN_BUTTON_PIN", "17"))    # ReSpeaker HAT butonu
+BUTTON_PIN = int(os.getenv("TEPECAN_BUTTON_PIN", "17"))    # GPIO hattı
+BUTTON_CHIP = os.getenv("TEPECAN_BUTTON_CHIP", "/dev/gpiochip0")   # Pi dışı kartlar
+
+
+def _device(env):
+    """TEPECAN_MIC / TEPECAN_SPK: indeks ya da cihaz adının bir parçası.
+
+    USB ses kartı çoğu kartta ALSA'nın varsayılanı olmuyor; boş bırakılırsa
+    sounddevice varsayılanı kullanır. `python3 -m sounddevice` ile listelenir.
+    """
+    v = os.getenv(env, "").strip()
+    if not v:
+        return None
+    return int(v) if v.lstrip("-").isdigit() else v
+
+
+MIC_DEV = _device("TEPECAN_MIC")
+SPK_DEV = _device("TEPECAN_SPK")
 WAKE_MODEL = os.getenv("TEPECAN_WAKE_MODEL",               # boş -> sadece buton
                        os.path.expanduser("~/tepecan/hey_tepecan.onnx"))
 WAKE_THRESHOLD = float(os.getenv("TEPECAN_WAKE_THRESHOLD", "0.5"))
@@ -273,7 +290,8 @@ def speak(text):
         rate = wav.getframerate()
         data = wav.readframes(wav.getnframes())
 
-    with sd.RawOutputStream(samplerate=rate, channels=1, dtype="int16") as out:
+    with sd.RawOutputStream(samplerate=rate, channels=1, dtype="int16",
+                            device=SPK_DEV) as out:
         out.write(data)
 
 
@@ -292,15 +310,41 @@ def speaker_thread(q):
 # --------------------------------------------------------------------------
 # 6) Buton — uyandırma kelimesi çalışsa da yedek olarak duruyor
 # --------------------------------------------------------------------------
+class _PeripheryButton:
+    """gpiozero'suz kartlar için: libgpiod üzerinden okunan bir buton.
+
+    gpiozero yalnız Raspberry Pi'de çalışıyor; Orange Pi gibi muadillerde
+    python-periphery her Linux kartında aynı gpiochip arayüzünü kullanıyor.
+    Sadece .is_pressed lazım, o yüzden sarmalayıcı bu kadar küçük.
+    """
+
+    def __init__(self, chip, line):
+        from periphery import GPIO
+        try:
+            self._gpio = GPIO(chip, line, "in", bias="pull_up")
+        except TypeError:          # eski periphery: bias argümanı yok
+            self._gpio = GPIO(chip, line, "in")
+
+    @property
+    def is_pressed(self):
+        return not self._gpio.read()      # pull-up: basılınca düşük
+
+
 def make_button():
+    """Önce gpiozero (Raspberry Pi), sonra periphery (her Linux kartı)."""
     try:
         from gpiozero import Button
         button = Button(BUTTON_PIN, pull_up=True, bounce_time=0.05)
-        print(f"Buton GPIO{BUTTON_PIN}.")
+        print(f"Buton GPIO{BUTTON_PIN} (gpiozero).")
         return button
-    except Exception as exc:
-        print(f"Buton yok ({exc}).")
-        return None
+    except Exception as gz_exc:
+        try:
+            button = _PeripheryButton(BUTTON_CHIP, BUTTON_PIN)
+            print(f"Buton {BUTTON_CHIP} hat {BUTTON_PIN} (periphery).")
+            return button
+        except Exception as pf_exc:
+            print(f"Buton yok (gpiozero: {gz_exc} | periphery: {pf_exc}).")
+            return None
 
 
 # --------------------------------------------------------------------------
@@ -318,7 +362,7 @@ def main():
           f"({OLLAMA_MODEL if LLM_BACKEND == 'ollama' else CLAUDE_MODEL})")
 
     with sd.RawInputStream(samplerate=MIC_RATE, blocksize=BLOCK,
-                           dtype="int16", channels=1) as mic:
+                           dtype="int16", channels=1, device=MIC_DEV) as mic:
         while True:
             set_state("bekliyor")
             drain(mic)

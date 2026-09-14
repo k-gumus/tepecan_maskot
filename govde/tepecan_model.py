@@ -114,6 +114,20 @@ def xz_prism(w, h, r, y0, y1, sections=48):
     return prism
 
 
+def y_oval(rx, rz, y0, y1, center_xz=(0.0, 0.0), sections=128):
+    """Elliptic cylinder along Y.
+
+    Bir elipsoit yerine prizma kullanmak önemli: elipsoidin yan yüzeyi göğüs
+    kabuğuna teğet geçip sıfır hacimli kabuklar ve manifold olmayan kenar
+    bırakıyor. Prizmanın yüzeyi kabuğa dik kestiği için bu olmuyor.
+    """
+    m = creation.cylinder(radius=1.0, segment=[(0, 0, 0), (0, 0, 1)], sections=sections)
+    m.apply_scale((rx, rz, abs(y1 - y0)))
+    m.apply_transform(trimesh.transformations.rotation_matrix(-np.pi / 2.0, (1, 0, 0)))
+    m.apply_translation((center_xz[0], min(y0, y1), center_xz[1]))
+    return m
+
+
 def slab_z(z0, z1, radius=300.0):
     """Infinite-ish horizontal slab between two heights."""
     return creation.cylinder(radius=radius, segment=[(0, 0, z0), (0, 0, z1)], sections=96)
@@ -299,15 +313,75 @@ EYE_W, EYE_H = 9.5, 10.5        # lens half width / half height on the face
 EYE_BULGE = 3.4                 # how far the lens stands off the head
 EYE_SINK = 1.2                  # how far its equator sits under the surface
 
-HATCH_W = 38.0                  # opening width  (x)
-HATCH_H = 40.0                  # opening height (z)
+# Açıklık genişliği kartın kendisine göre değil, kartı vidalayan tornavidaya
+# göre: kule delikleri x = +-29 mm ve açıklığın alt köşe yuvarlağının hemen
+# içinde kalıyor. 45 birimde kenara 1.4 mm kalıyordu, tornavida dik giremiyordu.
+HATCH_W = 47.0                  # opening width  (x) - 73 mm
+HATCH_H = 40.0                  # opening height (z) - 62 mm
 HATCH_Z = 54.0
 HATCH_R = 5.0                   # corner radius
-LEDGE_W = 3.5                   # how far the ledge reaches into the opening
-BOSS_R = 5.5
-BOSS_Z = (67.0, 41.0)           # screw boss heights
+LEDGE_W = 2.5                   # how far the ledge reaches into the opening
+BOSS_R = 6.0
+BOSS_Z = (68.0, 40.0)           # screw boss heights
 CABLE_W, CABLE_H, CABLE_Z = 10.0, 5.0, 26.5
-VENT_Z = (50.0, 54.0, 58.0)     # cooling slots in the cover
+VENT_W = 24.0                   # cooling slots in the cover
+VENT_Z = (52.0, 56.0, 60.0)
+
+# Hoparlör: 30 mm yuvarlak, 4 Ω 3 W - TR'de bol bulunan standart ölçü.
+# Yuvarlak 40 mm akustik olarak daha iyi olurdu ve yazıya da sığardı, ama
+# göğüs küresel: bilezikle 46.8 mm'lik düz bir ayak izi, oturma omzunu
+# y = 11.9 mm'ye kadar geri itiyor ve ada kartın ön kenarının (y = +17.3)
+# içine giriyor. Kartı oynatmadan sığan en büyük yuvarlak 32 mm; 30 mm bir
+# kademe pay bırakıyor (omuz y = 26.0 mm).
+# Izgara hoparlörün kendi ölçüsünde; bilezik her yöne SPK_FIT boşluk bırakıyor.
+SPK_BODY_W, SPK_BODY_H = 30.0, 30.0     # mm, hoparlör gövdesi
+SPK_W, SPK_H = SPK_BODY_W, SPK_BODY_H   # configure() birime çeviriyor
+SPK_Z = 43.5                    # 67.7 mm; YEDİTEPE'nin alt kenarına 3.2 mm pay
+SPK_SLOT = 1.7                  # ızgara yarık yüksekliği
+SPK_SLOTS = 5
+SPK_LIP = 2.6                   # oturma bileziğinin derinliği
+SPK_FIT = 1.0                   # mm, bileziğin hoparlöre bıraktığı boşluk
+SPK_RING = 2.4                  # mm, bilezik et kalınlığı
+
+# Kart montajı iki kademeli. Gövdede yalnız GENEL AMAÇLI dört kule var;
+# kartın kendi delik deseni, ayrı basılan bir adaptör plakasının üstünde.
+# Böylece kart değişirse 240 mm'lik gövde değil, 20 dakikalık plaka yeniden
+# basılıyor - gövde baskısı hangi kartın bulunacağına bağlı olmaktan çıkıyor.
+# 41.0'de kartın alt kenarı alt vida bossunun z aralığına (49.8-68.5 mm)
+# giriyordu ve kart için yalnız 41.7 mm derinlik kalıyordu - bu da Pi Zero
+# formatını şart koşuyordu. 43.0'da kart bossun tepesinin üstünde kalıyor,
+# arka sınır kaviteye geçiyor ve 55 mm derinliğe kadar kart sığıyor.
+BOARD_Z = 43.0                  # kulelerin tepesi = plakanın alt yüzeyi
+BOARD_Y = 1.5                   # kavitede ileri, alt vida bossunun önünde
+PLATE_HOLE_X, PLATE_HOLE_Y = 44.0 / 2, 28.0 / 2     # mm, gövde kuleleri
+PLATE_T = 3.0                   # mm, plaka kalınlığı
+PLATE_STAND = 3.0               # mm, plaka üstündeki kart standoff'u
+PLATE_R = 4.0                   # mm, plaka köşe yarıçapı
+PLATE_EDGE = 4.0                # mm, en dış delikten plaka kenarına kalan et
+# Kelepçe yuvası. 2.5 mm'lik standart kablo bağı için 2.6 mm yeterli
+# görünüyor ama FDM delikleri 0.2-0.4 mm dar basıyor - geçmiyordu. 3.6 mm,
+# bağın yuvadan iki kez geçmesine de izin veriyor.
+PLATE_TIE = (10.0, 3.6)         # mm, kelepçe yuvası (uzunluk x genişlik)
+# Plakadaki kart deseni. Pi Zero ailesi 58 x 23 mm; muadil kart alınırsa
+# yalnız bu iki sayı değişip tepecan_plaka.stl yeniden üretiliyor.
+BOARD_HOLE_X, BOARD_HOLE_Y = 58.0 / 2, 23.0 / 2     # mm; configure() birime çevirir
+# Derin kartlar için: plakanın merkezi gövde kulelerinde y=+2.3'te sabit, ama
+# kartın kendisi plakanın üstünde kaydırılabiliyor. Eksi değer kartı geriye alır.
+# 50 x 55 mm bir kart -10 mm ile geçiyor. dogrula.py pencereyi ölçüp yazdırıyor.
+BOARD_OFFSET_Y = 0.0            # mm
+
+# Buton kapağın üzerinde: omuz yerine burada, çünkü kapak ayrı parça ve
+# kablosu doğrudan karta gidiyor - omuzda kanal açmak gerekirdi.
+BTN_X, BTN_Z = -14.0, 46.0
+
+# Tepesu: aynı figürün elektroniksiz, pembe basılan ikizi. Tek farkı ellerine
+# açılan kart yuvası - kulübün QR kartını tutuyor. Ölçüler mutlak mm.
+CARD_W = 34.0                   # mm, klipsin genişliği
+CARD_T = 1.6                    # mm, yuva kalınlığı (lamine kart / kalın kağıt)
+CARD_H = 26.0                   # mm, klipsin yüksekliği
+# Klipsin el içindeki yeri - tasarım birimi, çünkü el de tasarım biriminde.
+CLIP_Y = (8.0, 14.0)            # avucun önünde, parmak uçlarının dışında
+CLIP_Z = 14.0
 
 CHEST_TOP = "IEEE"
 CHEST_BOTTOM = "YEDİTEPE"
@@ -323,12 +397,33 @@ SCREW_PILOT = 1.35              # radius, M3 self-tapping into plastic
 SCREW_FREE = 1.75               # radius, clearance hole in the cover
 SCREW_HEAD = 3.4                # radius, countersink
 GROOVE = 0.9                    # panel-line half width
+POST_R = 3.0                    # kart kulesi yarıçapı
+POST_PILOT = 1.05               # M2.5 kendinden kılavuzlu için
+POST_DEPTH = 8.0
+BOSS_DEPTH = 12.0               # vida bossunun kavite yüzeyinden içeri boyu
+# Buton yığını (hepsi mm): 6 x 6 x 4.3 mm tactile switch, kapağın iç yüzünden
+# BTN_GUIDE kadar içeride duruyor; arada kalan boşluk cap sapının kılavuzu.
+# Sap boyu = kapak eti + BTN_GUIDE, yani ucu tam pistona dayanıyor.
+BTN_HOLE = 2.1                  # kapak cap sapı için delik yarıçapı (Ø4.2)
+BTN_POCKET = 3.3                # switch cebi yarı ölçüsü (6.6 mm kare)
+BTN_WALL = 1.5                  # cebin et kalınlığı
+BTN_GUIDE = 2.0                 # sap kılavuzunun kapak içindeki derinliği
+BTN_DEPTH = 4.6                 # switch cebinin derinliği
+BTN_CAP_R = 5.0                 # cap başlığı yarıçapı
+BTN_CAP_T = 2.2                 # cap başlığı kalınlığı
+BTN_FIT = 0.25                  # sap ile delik arasındaki boşluk
 
 
 def configure(height_mm=DEFAULT_HEIGHT):
     """Set the design-unit values of everything that must stay absolute in mm."""
     global SCALE, WALL, CAV_R, LID_GAP, LEDGE_T
     global SCREW_PILOT, SCREW_FREE, SCREW_HEAD, GROOVE
+    global POST_R, POST_PILOT, POST_DEPTH, BOSS_DEPTH, BOARD_HOLE_X, BOARD_HOLE_Y
+    global PLATE_HOLE_X, PLATE_HOLE_Y, PLATE_T, PLATE_STAND, PLATE_R, BOARD_OFFSET_Y
+    global PLATE_EDGE, PLATE_TIE, CARD_W, CARD_T, CARD_H
+    global SPK_W, SPK_H, SPK_FIT, SPK_RING
+    global BTN_HOLE, BTN_POCKET, BTN_WALL, BTN_GUIDE, BTN_DEPTH
+    global BTN_CAP_R, BTN_CAP_T, BTN_FIT
     SCALE = height_mm / NATURAL_HEIGHT
     WALL = 3.0 / SCALE
     CAV_R = tuple(r - WALL for r in TORSO_R)
@@ -338,6 +433,35 @@ def configure(height_mm=DEFAULT_HEIGHT):
     SCREW_FREE = 1.75 / SCALE
     SCREW_HEAD = 3.4 / SCALE
     GROOVE = 1.1 / SCALE
+    POST_R = 3.0 / SCALE
+    POST_PILOT = 1.05 / SCALE
+    POST_DEPTH = 8.0 / SCALE
+    BOSS_DEPTH = 12.0 / SCALE
+    SPK_W = SPK_BODY_W / SCALE
+    SPK_H = SPK_BODY_H / SCALE
+    SPK_FIT = 1.0 / SCALE
+    SPK_RING = 2.4 / SCALE
+    BOARD_HOLE_X = 58.0 / 2 / SCALE
+    BOARD_HOLE_Y = 23.0 / 2 / SCALE
+    PLATE_HOLE_X = 44.0 / 2 / SCALE
+    PLATE_HOLE_Y = 28.0 / 2 / SCALE
+    BOARD_OFFSET_Y = 0.0 / SCALE
+    PLATE_T = 3.0 / SCALE
+    PLATE_STAND = 3.0 / SCALE
+    PLATE_R = 4.0 / SCALE
+    CARD_W = 34.0 / SCALE
+    CARD_T = 1.6 / SCALE
+    CARD_H = 26.0 / SCALE
+    PLATE_EDGE = 4.0 / SCALE
+    PLATE_TIE = (10.0 / SCALE, 3.6 / SCALE)
+    BTN_HOLE = 2.1 / SCALE
+    BTN_POCKET = 3.3 / SCALE
+    BTN_WALL = 1.5 / SCALE
+    BTN_GUIDE = 2.0 / SCALE
+    BTN_DEPTH = 4.6 / SCALE
+    BTN_CAP_R = 5.0 / SCALE
+    BTN_CAP_T = 2.2 / SCALE
+    BTN_FIT = 0.25 / SCALE
 
 
 configure()
@@ -355,6 +479,12 @@ def back_surface_y(z):
     """Y of the torso outer surface on the back centreline at height z."""
     t = (z - TORSO_C[2]) / TORSO_R[2]
     return -TORSO_R[1] * float(np.sqrt(max(0.0, 1.0 - t * t)))
+
+
+def cavity_back_y(z):
+    """Y of the cavity's inner surface on the back centreline at height z."""
+    t = (z - TORSO_C[2]) / CAV_R[2]
+    return -CAV_R[1] * float(np.sqrt(max(0.0, 1.0 - t * t)))
 
 
 # --------------------------------------------------------------------------
@@ -522,8 +652,8 @@ def smile_cut():
 
 def chest_panel(with_text=True):
     """Raised panel with a recessed field, IEEE and the university name."""
-    plate = inter(rbox((40, 22, 32), (0, 17, 52), 6.0), torso_skin(1.6))
-    recess = inter(rbox((34, 22, 26), (0, 17, 52), 4.0),
+    plate = inter(rbox((42, 22, 38), (0, 17, 52), 6.0), torso_skin(1.6))
+    recess = inter(rbox((36, 22, 32), (0, 17, 52), 4.0),
                    surface_band(TORSO_R, TORSO_C, 3.0, 0.8))
     panel = diff(plate, recess)
 
@@ -532,7 +662,7 @@ def chest_panel(with_text=True):
         for sz in (-1, 1):
             studs.append(
                 creation.cylinder(radius=1.8,
-                                  segment=[(sx * 17, 0, 52 + sz * 13), (sx * 17, 40, 52 + sz * 13)],
+                                  segment=[(sx * 18, 0, 52 + sz * 16), (sx * 18, 40, 52 + sz * 16)],
                                   sections=32)
             )
     panel = union(panel, inter(union(*studs), torso_skin(2.4)))
@@ -541,8 +671,8 @@ def chest_panel(with_text=True):
         return panel
 
     letters = []
-    top = text_solid(CHEST_TOP, 9.0, 18.0, (0, 24, 57.5), max_width=30.0)
-    bottom = text_solid(CHEST_BOTTOM, 5.0, 18.0, (0, 24, 45.0), max_width=30.0)
+    top = text_solid(CHEST_TOP, 6.5, 18.0, (0, 24, 64.0), max_width=30.0)
+    bottom = text_solid(CHEST_BOTTOM, 3.6, 18.0, (0, 24, 57.0), max_width=30.0)
     for t in (top, bottom):
         if t is not None:
             letters.append(inter(t, torso_skin(2.6)))
@@ -562,6 +692,160 @@ def shoulder_badge(with_text=True):
     keep = creation.box(extents=(2.5, 40, 40))
     keep.apply_translation((-41.25, 0, 68))
     return union(badge, inter(txt, keep))
+
+
+def speaker_grille():
+    """Göğsün ortasına, oval bir alan içine yatay yarıklar."""
+    oval = y_oval(SPK_W / 2, SPK_H / 2, -5.0, 40.0, (0.0, SPK_Z))
+    pitch = SPK_H / (SPK_SLOTS + 0.6)
+    slots = []
+    for i in range(SPK_SLOTS):
+        z = SPK_Z + (i - (SPK_SLOTS - 1) / 2.0) * pitch
+        slots.append(rbox((SPK_W + 6, 40.0, SPK_SLOT), (0, 20, z), SPK_SLOT / 2 - 0.02))
+    return inter(union(*slots), oval)
+
+
+def speaker_seat_y():
+    """Hoparlörün oturduğu düz omuz düzleminin y'si.
+
+    Göğüs duvarı küresel; 47 x 27 mm'lik bir ayak izinde 6.4 mm sarkıyor, yani
+    düz yüzlü bir hoparlör duvara yaslanamıyor. Omuz, ayak izinin en derin
+    noktasına göre seçiliyor: böylece düzlem her yerde et içinde kalıyor.
+    """
+    rx = SPK_W / 2 + SPK_FIT + SPK_RING
+    rz = SPK_H / 2 + SPK_FIT + SPK_RING
+    th = np.linspace(0.0, 2.0 * np.pi, 361)
+    x = rx * np.cos(th)
+    z = SPK_Z + rz * np.sin(th)
+    k = (x / CAV_R[0]) ** 2 + ((z - TORSO_C[2]) / CAV_R[2]) ** 2
+    return float(CAV_R[1] * np.sqrt(np.clip(1.0 - k.max(), 0.0, 1.0)))
+
+
+def speaker_mount():
+    """Hoparlör yuvası: düz omuzlu bir ada, arkadan oyulmuş cep, önde port.
+
+    Ada göğüs duvarının içine doğru büyütülüyor ve dış ucu duvarın 1.2 birim
+    içinde bitiyor - tam kavite yüzeyinde bitirmek üst kenarda 0.06 mm'lik
+    teğet bir pul bırakıyordu, hem basılamıyor hem de float32'ye yuvarlanırken
+    deliniyordu. Ortadaki port, ızgaranın arkasında et bırakmıyor.
+    """
+    rx = SPK_W / 2 + SPK_FIT
+    rz = SPK_H / 2 + SPK_FIT
+    seat = speaker_seat_y()
+    buried = ell(tuple(r + 1.2 for r in CAV_R), TORSO_C)
+
+    pad = inter(y_oval(rx + SPK_RING, rz + SPK_RING, seat - SPK_LIP, 40.0, (0.0, SPK_Z)),
+                buried)
+    pocket = y_oval(rx, rz, seat - SPK_LIP - 10.0, seat, (0.0, SPK_Z))
+    port = y_oval(rx - SPK_RING, rz - SPK_RING, seat - 1.0, 40.0, (0.0, SPK_Z))
+    return diff(pad, pocket, port)
+
+
+def board_posts():
+    """Adaptör plakasının vidalandığı dört genel amaçlı kule.
+
+    Kulelerin aralığı bilerek karttan bağımsız: kart deseni plakanın üstünde,
+    burada değil. 44 x 28 mm, kapak açıklığının rahat içinde kalıyor.
+    """
+    posts, holes = [], []
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            x, y = sx * PLATE_HOLE_X, BOARD_Y + sy * PLATE_HOLE_Y
+            posts.append(inter(
+                creation.cylinder(radius=POST_R, segment=[(x, y, 24), (x, y, BOARD_Z)],
+                                  sections=40),
+                torso_solid()))
+            holes.append(creation.cylinder(
+                radius=POST_PILOT,
+                segment=[(x, y, BOARD_Z - POST_DEPTH), (x, y, BOARD_Z + 1)], sections=24))
+    return union(*posts), union(*holes)
+
+
+def plate_size():
+    """Plakanın dış ölçüsü: en dış deliği hangisiyse ona göre türetiliyor.
+
+    Böylece Pi Zero deseni (58 x 23) de, daha kare bir muadil (45 x 50 gibi)
+    de aynı kodla, kendi ölçüsünde bir plaka üretiyor.
+    """
+    w = 2.0 * (max(BOARD_HOLE_X, PLATE_HOLE_X) + PLATE_EDGE)
+    # Plaka kartın üstünde merkezli; kaydırma gövde deliklerinde karşılanıyor.
+    # Tersini yapmak (kartı kaydırmak) plakayı iki kat büyütüp kapak
+    # açıklığından geçemez hale getiriyordu.
+    d = 2.0 * (max(BOARD_HOLE_Y, PLATE_HOLE_Y + abs(BOARD_OFFSET_Y)) + PLATE_EDGE)
+    return w, d
+
+
+def build_plate():
+    """Kart adaptör plakası - ayrı basılır, kartın delik desenini o taşır.
+
+    Altında gövde kulelerine oturan dört serbest delik, üstünde kartın kendi
+    deseninde dört standoff var. Kart değişince yalnız BOARD_HOLE_X/Y değişip
+    bu parça yeniden basılıyor; gövdeye dokunulmuyor.
+
+    Dört köşedeki kelepçe yuvaları parçaya özel değil bilerek: USB ses kartı,
+    amfi modülü, kablo demeti - ne olursa plastik kelepçeyle bağlanıyor, her
+    modül için ayrı yuva modellemeye gerek kalmıyor.
+
+    Yatık basılır, destek istemez; z=0 düzleminde duruyor.
+    """
+    w, d = plate_size()
+    # rbox köşeleri üç eksende birden yuvarlıyor; plakanın altı düz kalmalı,
+    # o yüzden yalnız X/Y kesitinde yuvarlak bir prizma kullanıyoruz.
+    plate = rot(xz_prism(w, d, PLATE_R, 0.0, PLATE_T), 90, (1, 0, 0))
+
+    stands, pilots, cuts = [], [], []
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            bx, by = sx * BOARD_HOLE_X, sy * BOARD_HOLE_Y
+            stands.append(creation.cylinder(
+                radius=POST_R,
+                segment=[(bx, by, PLATE_T - 0.4), (bx, by, PLATE_T + PLATE_STAND)],
+                sections=40))
+            pilots.append(creation.cylinder(
+                radius=POST_PILOT,
+                segment=[(bx, by, PLATE_T + PLATE_STAND - POST_DEPTH),
+                         (bx, by, PLATE_T + PLATE_STAND + 1)], sections=24))
+            px, py = sx * PLATE_HOLE_X, -BOARD_OFFSET_Y + sy * PLATE_HOLE_Y
+            cuts.append(creation.cylinder(
+                radius=POST_PILOT + LID_GAP,
+                segment=[(px, py, -1), (px, py, PLATE_T + 1)], sections=24))
+
+    # kelepçe yuvaları: her köşede, deliklerin dışında kalan ette
+    tl, tw = PLATE_TIE
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            x = sx * (w / 2.0 - PLATE_EDGE / 2.0 - tw / 2.0)
+            y = sy * (d / 2.0 - PLATE_EDGE - tl / 2.0)
+            cuts.append(creation.box(
+                extents=(tw, tl, PLATE_T + 2),
+                transform=trimesh.transformations.translation_matrix(
+                    (x, y, PLATE_T / 2.0))))
+
+    return diff(union(plate, *stands), *pilots, *cuts)
+
+
+def card_clip():
+    """Tepesu'nun kaldırdığı ele, QR kartını tutan klips. (ekle, kes) döner.
+
+    Ele yuva KESMEK işe yaramıyor: ince bir kanalı parmaklar boyunca geçirmek
+    uçlarını gövdeden koparıp modeli beş ayrı parçaya bölüyor (ölçüldü). Onun
+    yerine avucun önüne ince duvarlı bir klips ekleniyor ve yuva klipsin
+    içinde açılıyor - parmaklara hiç dokunulmuyor, model tek parça kalıyor.
+
+    Yalnız sağ (kaldırılmış) elde: sol el aşağı bakıyor, oradan çıkan kart
+    bacağa giriyor.
+    """
+    shoulder, elbow, wrist = ARM_RIGHT
+    wrist = np.asarray(wrist, dtype=float)
+    forward = unit(wrist - np.asarray(elbow, dtype=float))
+    fr = frame(wrist, forward, (0, 1, 0))
+
+    y0, y1 = CLIP_Y
+    block = rbox((CARD_W, y1 - y0, CARD_H), (0.0, (y0 + y1) / 2.0, CLIP_Z), 1.2 / SCALE)
+    # Yuva klipsin üstünden taşıyor ki kart yukarıdan sokulabilsin.
+    slot = creation.box(extents=(CARD_W - 3.0 / SCALE, CARD_T, CARD_H + 30.0 / SCALE))
+    slot.apply_translation((0.0, (y0 + y1) / 2.0, CLIP_Z + 15.0 / SCALE))
+    return placed(block, fr), placed(slot, fr)
 
 
 def rivets():
@@ -588,17 +872,27 @@ def ledge():
     """Rim inside the shell that the cover rests against."""
     band = diff(cavity_solid(),
                 ell(tuple(r - LEDGE_T for r in CAV_R), TORSO_C))
-    outer = xz_prism(HATCH_W + 14, HATCH_H + 15, 8.0, -60, -4)
-    inner = xz_prism(HATCH_W - 2 * LEDGE_W, HATCH_H - 2 * LEDGE_W, 4.0, -70, 10)
+    # Prizmalar y'de sonuna kadar uzanıyor, arka yarıyı y=0 düzlemi ayırıyor.
+    # Uçları şeridin içinde bitirmek teğet kesişim ve manifold olmayan kenar
+    # bırakıyordu; y=0'da şerit düzleme dik geçtiği için orada sorun çıkmıyor.
+    outer = xz_prism(HATCH_W + 6, HATCH_H + 9, 8.0, -60, 60)
+    inner = xz_prism(HATCH_W - 2 * LEDGE_W, HATCH_H - 2 * LEDGE_W, 4.0, -70, 70)
     outer.apply_translation((0, 0, HATCH_Z))
     inner.apply_translation((0, 0, HATCH_Z))
-    return inter(band, diff(outer, inner))
+    return inter(band, diff(outer, inner), half_space(1, -1, 0.0))
 
 
 def bosses():
+    """Vida bossları: kavite yüzeyinden yalnız BOSS_DEPTH kadar içeri.
+
+    Eskiden kaviteyi baştan başa geçiyorlardı; alt boss tam kartın oturduğu
+    hacmi dolduruyordu. M3 vidaya kapak eti + 12 mm diş fazlasıyla yetiyor.
+    """
     parts = []
     for z in BOSS_Z:
-        cyl = creation.cylinder(radius=BOSS_R, segment=[(0, -8, z), (0, -60, z)], sections=48)
+        cyl = creation.cylinder(radius=BOSS_R,
+                                segment=[(0, cavity_back_y(z) + BOSS_DEPTH, z), (0, -60, z)],
+                                sections=48)
         parts.append(inter(cyl, cavity_solid()))
     return union(*parts)
 
@@ -619,10 +913,55 @@ def cable_slot():
 def vent_slots():
     cuts = []
     for z in VENT_Z:
-        p = xz_prism(18.0, 2.6, 1.2, -60, 10)
+        p = xz_prism(VENT_W, 2.6, 1.2, -60, 10)
         p.apply_translation((0, 0, z))
         cuts.append(p)
     return union(*cuts)
+
+
+def button_pocket():
+    """Kapağın iç yüzünde sap kılavuzu + switch cebi.
+
+    Switch doğrudan kapağın iç yüzüne değil, BTN_GUIDE kadar içeride duruyor;
+    arada kalan Ø4.2 mm'lik boru cap sapını yönlendiriyor. Sapı kapak etine
+    eşitleyip switch'i yüzeye dayamak, cap takılınca butonu sürekli basılı
+    tutuyordu.
+    """
+    face = back_surface_y(BTN_Z)
+    inner = face + WALL                       # kapağın iç yüzü
+    length = BTN_GUIDE + BTN_DEPTH
+    half = BTN_POCKET + BTN_WALL
+
+    collar = rbox((2 * half, length, 2 * half),
+                  (BTN_X, inner + length / 2.0 - 0.3, BTN_Z), 1.0)
+    # switch cebi: kılavuzun bittiği yerden arkaya kadar açık
+    pocket = creation.box(
+        extents=(2 * BTN_POCKET, BTN_DEPTH + 20.0, 2 * BTN_POCKET),
+        transform=trimesh.transformations.translation_matrix(
+            (BTN_X, inner + BTN_GUIDE + (BTN_DEPTH + 20.0) / 2.0, BTN_Z)))
+    # sap deliği: kapağın dışından kılavuzun sonuna kadar. Kolyeden de
+    # çıkarılıyor - kapak birleştirmesi sonradan yapıldığı için, yoksa delik
+    # kolyenin içinde kapalı bir boşluk olarak kalıyor.
+    hole = creation.cylinder(radius=BTN_HOLE,
+                             segment=[(BTN_X, inner + BTN_GUIDE, BTN_Z),
+                                      (BTN_X, face - 5.0, BTN_Z)], sections=32)
+    collar = diff(collar, pocket, hole)
+    return collar, hole
+
+
+def button_cap():
+    """Ayrı basılan buton kapağı: disk + kapaktan geçen sap.
+
+    Sap boyu kapak eti + kılavuz kadar: ucu switch pistonuna dayanıyor, fazla
+    bastırmıyor.
+    """
+    stem_len = WALL + BTN_GUIDE
+    head = creation.cylinder(radius=BTN_CAP_R,
+                             segment=[(0, 0, 0), (0, -BTN_CAP_T, 0)], sections=64)
+    stem = creation.cylinder(radius=BTN_HOLE - BTN_FIT,
+                             segment=[(0, -0.4, 0), (0, stem_len, 0)], sections=32)
+    cap = union(head, stem)
+    return rot(cap, 90, (1, 0, 0))          # baskı için düz yatır
 
 
 def build_lid(vents=True):
@@ -645,7 +984,10 @@ def build_lid(vents=True):
         cuts.append(cone)
     if vents:
         cuts.append(vent_slots())
-    return diff(lid, *cuts)
+
+    collar, hole = button_pocket()
+    cuts.append(hole)
+    return union(diff(lid, *cuts), collar)
 
 
 # --------------------------------------------------------------------------
@@ -687,14 +1029,20 @@ def build_outer(with_text=True):
 def build_all(with_text=True, vents=True, base_trim=2.0):
     outer = build_outer(with_text)
 
-    solid = cut_below(outer, base_trim)
+    solid = cut_below(diff(outer, speaker_grille()), base_trim)
+    # Tepesu: ızgarasız, kavitesiz, kaldırdığı elinde kart klipsi olan ikiz
+    clip_add, clip_cut = card_clip()
+    tepesu = cut_below(diff(union(outer, clip_add), clip_cut), base_trim)
 
+    posts, post_holes = board_posts()
     body = diff(outer, cavity_solid(), hatch_prism())
-    body = union(body, ledge(), bosses())
-    body = diff(body, screw_pilots(), cable_slot())
+    body = union(body, ledge(), bosses(), speaker_mount(), posts)
+    body = diff(body, screw_pilots(), cable_slot(), speaker_grille(), post_holes)
     body = cut_below(body, base_trim)
 
-    return drop_slivers(solid), drop_slivers(body), drop_slivers(build_lid(vents))
+    return (drop_slivers(solid), drop_slivers(body),
+            drop_slivers(build_lid(vents)), drop_slivers(button_cap()),
+            drop_slivers(build_plate()), drop_slivers(tepesu))
 
 
 def report(name, mesh):
@@ -719,12 +1067,16 @@ def main():
           % (args.height, SCALE, WALL * SCALE, 20480))
 
     os.makedirs(args.outdir, exist_ok=True)
-    solid, body, lid = build_all(with_text=not args.no_text, vents=not args.no_vents)
+    solid, body, lid, cap, plate, tepesu = build_all(with_text=not args.no_text,
+                                                     vents=not args.no_vents)
 
     outputs = {
         "tepecan_solid": solid,
         "tepecan_body": body,
         "tepecan_lid": rot(lid, -90, (1, 0, 0)),   # cover flat on the bed, outer face up
+        "tepecan_buton": cap,                      # ayrı basılan buton kapağı
+        "tepecan_plaka": plate,                    # kart adaptör plakası
+        "tepesu": tepesu,                          # elektroniksiz ikiz, kart yuvalı
     }
     for name, mesh in outputs.items():
         mesh.apply_scale(SCALE)
@@ -745,6 +1097,16 @@ def main():
                 and len(check.split(only_watertight=False)) == 1 and check.volume > 0):
             raise SystemExit("%s is not a clean printable solid" % path)
         report(name, check)
+
+    # Plaka mutlak mm, kapak açıklığı ise figürle birlikte küçülüyor: küçük
+    # boylarda plaka açıklıktan geçmez. Elektronik kurulum 240 mm'lik bir iş.
+    pw, pd = plate_size()
+    w_open = (HATCH_W - 2 * LEDGE_W) * SCALE
+    h_open = (HATCH_H - 2 * LEDGE_W) * SCALE
+    if np.hypot(pw * SCALE, pd * SCALE) > np.hypot(w_open, h_open) - 2.0:
+        print("UYARI: adaptör plakası (%.0f x %.0f mm) bu boyda kapak "
+              "açıklığından (%.0f x %.0f mm) geçmiyor - elektronik için "
+              "en az 240 mm bas." % (pw * SCALE, pd * SCALE, w_open, h_open))
 
     com = body.center_mass
     print("body centre of mass x/y = %.1f / %.1f mm (footprint check)" % (com[0], com[1]))
