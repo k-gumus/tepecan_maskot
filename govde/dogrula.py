@@ -125,10 +125,25 @@ def envelope(depth, height, lo=20.0, hi=95.0):
         lo, hi = (mid, hi) if clash(body, env)[0] <= 1.0 else (lo, mid)
     return None if lo <= 20.5 else lo
 
-for d in (30.0, 35.0, 40.0):
-    w = envelope(d, 18.0)
+# Derin kartlar plakada geriye kaydırılarak sığıyor; tarama da öyle bakıyor.
+def envelope_off(depth, height=18.0):
+    best = None
+    for off in np.arange(0.0, -16.1, -1.0):
+        lo, hi = 20.0, 95.0
+        for _ in range(8):
+            mid = (lo + hi) / 2.0
+            env = box((mid + 2 * CLEAR, depth + 2 * CLEAR, height + CLEAR),
+                      (0, M(T.BOARD_Y) + off, board_z0 + height / 2.0 + CLEAR / 2.0))
+            lo, hi = (mid, hi) if clash(body, env)[0] <= 1.0 else (lo, mid)
+        if lo > 20.5 and (best is None or lo > best[0]):
+            best = (lo, off)
+    return best
+
+for d in (30.0, 40.0, 50.0, 55.0):
+    r = envelope_off(d)
     print("     %4.0f mm derin kart -> %s"
-          % (d, "en fazla %.1f mm genişlik" % w if w else "SIĞMIYOR"))
+          % (d, "en fazla %.1f mm genişlik (plakada %.0f mm kaydırmayla)" % r
+             if r else "SIĞMIYOR"))
 
 h = 20.0
 while h < 60.0 and envelope(30.0, h + 5.0):
@@ -264,10 +279,9 @@ print("     plakadaki kart deseni %.1f x %.1f mm (Pi Zero ailesi: 58.0 x 23.0)"
       % (M(2 * T.BOARD_HOLE_X), M(2 * T.BOARD_HOLE_Y)))
 print("     kart alt yüzeyi     z = %.1f mm, üstü (18 mm) z = %.1f mm"
       % (board_z0, board_z0 + 18.0))
-print("     kart için y penceresi %.1f .. %.1f mm = %.1f mm derinlik"
-      " (kart merkezi y=%.1f)"
-      % (boss_front + CLEAR, spk_back - CLEAR,
-         (spk_back - boss_front) - 2 * CLEAR, M(T.BOARD_Y)))
+print("     kart önündeki sınır  hoparlör adası y = %.1f mm" % spk_back)
+print("     alt vida bossu       z = %.1f .. %.1f mm (kart %.1f mm'de, üstünde)"
+      % (Z(min(T.BOSS_Z)) - M(T.BOSS_R), Z(min(T.BOSS_Z)) + M(T.BOSS_R), board_z0))
 print("     kule / kılavuz çapı %.1f / %.1f mm" % (M(2 * T.POST_R), M(2 * T.POST_PILOT)))
 print("     vida bossu          Ø%.1f mm, %.1f mm derin" % (M(2 * T.BOSS_R), M(T.BOSS_DEPTH)))
 print("     hoparlör            Ø%.1f mm @ z=%.1f mm, %d yarık"

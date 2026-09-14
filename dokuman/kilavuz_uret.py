@@ -171,8 +171,8 @@ table(
       "Bu sınıf kartlarda 512 MB - 2 GB RAM var; en küçük dil modeli bile zor "
       "sığar, sığsa saniyede 1-3 token üretir. Bir cümle yarım dakika sürerdi."],
      ["Büyük kart alınmıyor",
-      "85 × 56 mm bir kart maskotun içine girmiyor: kapak geçişi 65 × 54 mm ve "
-      "kavitede kart için 41.7 mm derinlik var. Kapalı PLA kasada da ısınıyor. "
+      "85 × 56 mm bir kart maskotun içine girmiyor: kapak açıklığının köşegeni "
+      "85.1 mm, o kartın köşegeni 85.8 mm. Kapalı PLA kasada da ısınıyor. "
       "Çözdüğü tek darboğaz zaten sunucuya taşındı."],
      ["Raspberry Pi yerine muadil",
       "Pi Zero 2 W Türkiye'de bulunamıyor. Kart ince istemci olduğu için marka "
@@ -204,7 +204,8 @@ table(
       "kelimesini yakalar, beyin sunucusuna gönderir. Raspberry Pi Zero 2 W "
       "ilk tercihti ama Türkiye'de bulunamıyor. Şart: 64-bit (aarch64) — "
       "openWakeWord'ün istediği onnxruntime yalnız bunun için derleniyor. "
-      "Gövdeye en fazla 74 × 30 mm (ya da 71 × 35) kart sığıyor.", "$15"],
+      "Gövdeye 74.5 × 30, 64.8 × 40 ya da 63.4 × 55 mm'ye kadar kart sığıyor - "
+      "yani Pi Zero formatı da, Orange Pi Zero 3 gibi daha kare kartlar da.", "$15"],
      ["2", "USB ses kartı (CM108/CM119 yongalı)",
       "Mikrofon girişi + hat çıkışı. Sınıf-uyumlu, yani hiçbir kartta sürücü "
       "istemiyor. ReSpeaker HAT'in yerini tutuyor: HAT yalnız Raspberry Pi'de "
@@ -303,7 +304,7 @@ bullets([
     "dolduruyor. Cep Ø32 mm, omuz 2.4 mm. Ø40 mm hoparlör bu yüzden sığmıyor: "
     "o ayak izinde omuz y = 11.9 mm'ye kadar geriliyor ve kartın önüne giriyor.",
     "<b>Kart montaj kuleleri</b> — Ø6 mm, dört adet, <b>karttan bağımsız</b> "
-    "44 × 28 mm aralıkta. Üst yüzeyleri tabandan 61 mm'de, tepelerinde M2.5 için "
+    "44 × 28 mm aralıkta. Üst yüzeyleri tabandan 63.8 mm'de, tepelerinde M2.5 için "
     "Ø2.1 mm kılavuz delik, 8 mm derin. Kartın kendi delik deseni bu kulelerde "
     "değil, üstlerine vidalanan adaptör plakasında.",
     "<b>Adaptör plakası</b> — 66 × 36 × 6 mm ayrı parça. Gövdeyi kart seçiminden "
@@ -346,21 +347,23 @@ code("""
    │  ║ HOPARLÖR ║  Ø30 mm, öne bakar,                    │  z = 50-80 mm
    │  ║ + adası  ║  göğüs ızgarasından konuşur            │
    │  ╚══════════╝   ┌────────────────────────────────┐   │
-   │                 │  KART (aarch64 SBC)            │   │  z = 67-85 mm
+   │                 │  KART (aarch64 SBC)            │   │  z = 70-88 mm
    │                 ├────────────────────────────────┤   │
-   │                 │  ADAPTÖR PLAKASI  66 x 36 mm   │   │  z = 61-67 mm
+   │                 │  ADAPTÖR PLAKASI               │   │  z = 64-70 mm
    │      4 kule ────┴────────────────────────────────┘   │
-   │      z = 34-61 mm                                    │
+   │      z = 34-64 mm                                    │
    │                 USB ses kartı ve amfi: plakanın      │
    │                 köşelerine kelepçeyle bağlanır       │
    │                                  vida bossu * z=59 mm│
    │   kablo yuvasi ------------------------------->      │  z = 38 mm
    └──────────────────────────────────────────────────────┘
 
-   Kart için y penceresi -20.9 .. +20.8 mm (41.7 mm derinlik): önünde
-   hoparlör adası, arkasında alt vida bossu. Kart 30 mm derinse en fazla
-   74.5 mm, 35 mm derinse 71.0 mm genişlikte olabilir; plakanın üstünde
-   45 mm yükseklik var. dogrula.py bu sayıları her baskı öncesi ölçüyor.
+   Kart, alt vida bossunun (z = 49.8-68.5 mm) tepesinin üstünde duruyor;
+   bu yüzden arka sınırı boss değil kavite duvarı belirliyor. Sığan en
+   büyük kart: 30 mm derinse 74.5 mm, 40 mm derinse 64.8 mm, 50-55 mm
+   derinse 63.4 mm genişlik (derin kartlar plakada 7-10 mm geriye
+   kaydırılıyor). Plakanın üstünde 40 mm yükseklik var. dogrula.py bu
+   sayıları her baskı öncesi ölçüyor.
 """)
 
 picture("govde/preview/tepecan_ic.png", 150 * mm,
@@ -376,8 +379,8 @@ bullets([
     "Kart elindeyken montaj deliklerinin aralığını kumpasla ölç. "
     "<font face='Mono'>tepecan_model.py</font> içinde BOARD_HOLE_X / BOARD_HOLE_Y "
     "değerlerini gir (yarı ölçü: 58 × 23 mm delik için 58/2 ve 23/2), yeniden üret, "
-    "<font face='Mono'>tepecan_plaka.stl</font>'i bas. Kart 37 mm'den derinse "
-    "BOARD_OFFSET_Y ile plakanın üstünde geriye kaydır.",
+    "<font face='Mono'>tepecan_plaka.stl</font>'i bas. Kart 35 mm'den derinse "
+    "BOARD_OFFSET_Y ile geriye kaydır: 50 mm için -7, 55 mm için -10 mm.",
     "Hoparlörü göğüs ızgarasının arkasındaki adaya, düz omza yüzü öne bakacak "
     "şekilde otur ve kenarından yapıştır. <b>Arkasını olabildiğince kapalı tut</b> "
     "— omzun çevresini silikonla sızdırmaz yapmak ses kalitesini gözle görülür "

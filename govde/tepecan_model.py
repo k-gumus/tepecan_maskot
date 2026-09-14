@@ -347,7 +347,11 @@ SPK_RING = 2.4                  # mm, bilezik et kalınlığı
 # kartın kendi delik deseni, ayrı basılan bir adaptör plakasının üstünde.
 # Böylece kart değişirse 240 mm'lik gövde değil, 20 dakikalık plaka yeniden
 # basılıyor - gövde baskısı hangi kartın bulunacağına bağlı olmaktan çıkıyor.
-BOARD_Z = 41.0                  # kulelerin tepesi = plakanın alt yüzeyi
+# 41.0'de kartın alt kenarı alt vida bossunun z aralığına (49.8-68.5 mm)
+# giriyordu ve kart için yalnız 41.7 mm derinlik kalıyordu - bu da Pi Zero
+# formatını şart koşuyordu. 43.0'da kart bossun tepesinin üstünde kalıyor,
+# arka sınır kaviteye geçiyor ve 55 mm derinliğe kadar kart sığıyor.
+BOARD_Z = 43.0                  # kulelerin tepesi = plakanın alt yüzeyi
 BOARD_Y = 1.5                   # kavitede ileri, alt vida bossunun önünde
 PLATE_HOLE_X, PLATE_HOLE_Y = 44.0 / 2, 28.0 / 2     # mm, gövde kuleleri
 PLATE_T = 3.0                   # mm, plaka kalınlığı
@@ -358,9 +362,9 @@ PLATE_TIE = (8.0, 2.6)          # mm, kelepçe yuvası (uzunluk x genişlik)
 # Plakadaki kart deseni. Pi Zero ailesi 58 x 23 mm; muadil kart alınırsa
 # yalnız bu iki sayı değişip tepecan_plaka.stl yeniden üretiliyor.
 BOARD_HOLE_X, BOARD_HOLE_Y = 58.0 / 2, 23.0 / 2     # mm; configure() birime çevirir
-# Kart 37 mm'den derinse plakanın üstünde y'de kaydırılması gerekir: kullanılabilir
-# pencere -20.9 .. +20.8 mm ama plakanın merkezi y=+2.3'te. Eksi değer kartı geriye,
-# alt vida bossuna doğru alır. dogrula.py pencereyi ölçüp yazdırıyor.
+# Derin kartlar için: plakanın merkezi gövde kulelerinde y=+2.3'te sabit, ama
+# kartın kendisi plakanın üstünde kaydırılabiliyor. Eksi değer kartı geriye alır.
+# 50 x 55 mm bir kart -10 mm ile geçiyor. dogrula.py pencereyi ölçüp yazdırıyor.
 BOARD_OFFSET_Y = 0.0            # mm
 
 # Buton kapağın üzerinde: omuz yerine burada, çünkü kapak ayrı parça ve
@@ -749,7 +753,10 @@ def plate_size():
     de aynı kodla, kendi ölçüsünde bir plaka üretiyor.
     """
     w = 2.0 * (max(BOARD_HOLE_X, PLATE_HOLE_X) + PLATE_EDGE)
-    d = 2.0 * (max(BOARD_HOLE_Y + abs(BOARD_OFFSET_Y), PLATE_HOLE_Y) + PLATE_EDGE)
+    # Plaka kartın üstünde merkezli; kaydırma gövde deliklerinde karşılanıyor.
+    # Tersini yapmak (kartı kaydırmak) plakayı iki kat büyütüp kapak
+    # açıklığından geçemez hale getiriyordu.
+    d = 2.0 * (max(BOARD_HOLE_Y, PLATE_HOLE_Y + abs(BOARD_OFFSET_Y)) + PLATE_EDGE)
     return w, d
 
 
@@ -774,7 +781,7 @@ def build_plate():
     stands, pilots, cuts = [], [], []
     for sx in (-1, 1):
         for sy in (-1, 1):
-            bx, by = sx * BOARD_HOLE_X, BOARD_OFFSET_Y + sy * BOARD_HOLE_Y
+            bx, by = sx * BOARD_HOLE_X, sy * BOARD_HOLE_Y
             stands.append(creation.cylinder(
                 radius=POST_R,
                 segment=[(bx, by, PLATE_T - 0.4), (bx, by, PLATE_T + PLATE_STAND)],
@@ -783,7 +790,7 @@ def build_plate():
                 radius=POST_PILOT,
                 segment=[(bx, by, PLATE_T + PLATE_STAND - POST_DEPTH),
                          (bx, by, PLATE_T + PLATE_STAND + 1)], sections=24))
-            px, py = sx * PLATE_HOLE_X, sy * PLATE_HOLE_Y
+            px, py = sx * PLATE_HOLE_X, -BOARD_OFFSET_Y + sy * PLATE_HOLE_Y
             cuts.append(creation.cylinder(
                 radius=POST_PILOT + LID_GAP,
                 segment=[(px, py, -1), (px, py, PLATE_T + 1)], sections=24))

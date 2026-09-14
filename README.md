@@ -94,10 +94,10 @@ yeniden üretiliyor.
 | İç ölçü | Değer |
 |---|---|
 | Kapak açıklığı / geçiş | 73 × 62 mm / 65 × 54 mm |
-| Gövde kuleleri | Ø6 mm, 44 × 28 mm aralık (karttan bağımsız), üstleri tabandan 61 mm'de |
+| Gövde kuleleri | Ø6 mm, 44 × 28 mm aralık (karttan bağımsız), üstleri tabandan 63.8 mm'de |
 | Kule kılavuz deliği | Ø2.1 mm × 8 mm (M2.5 kendinden kılavuzlu) |
 | Adaptör plakası | 66 × 36 × 6 mm, üstünde kartın kendi deseni |
-| Kart için yer | 74.5 × 30 mm (ya da 71 × 35), plaka üstünde 45 mm yükseklik |
+| Kart için yer | 74.5 × 30, 64.8 × 40 ya da 63.4 × 55 mm; plaka üstünde 40 mm yükseklik |
 | Hoparlör yuvası | ızgara Ø30 mm, cep Ø32 mm, düz omuz |
 | Kapak vidası | 2 × M3, Ø18.7 mm boss, 12 mm derin |
 | Buton | kapakta, Ø4.2 mm delik + 6.6 mm kare cep |
