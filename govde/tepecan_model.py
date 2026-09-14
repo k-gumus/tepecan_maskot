@@ -358,7 +358,10 @@ PLATE_T = 3.0                   # mm, plaka kalınlığı
 PLATE_STAND = 3.0               # mm, plaka üstündeki kart standoff'u
 PLATE_R = 4.0                   # mm, plaka köşe yarıçapı
 PLATE_EDGE = 4.0                # mm, en dış delikten plaka kenarına kalan et
-PLATE_TIE = (8.0, 2.6)          # mm, kelepçe yuvası (uzunluk x genişlik)
+# Kelepçe yuvası. 2.5 mm'lik standart kablo bağı için 2.6 mm yeterli
+# görünüyor ama FDM delikleri 0.2-0.4 mm dar basıyor - geçmiyordu. 3.6 mm,
+# bağın yuvadan iki kez geçmesine de izin veriyor.
+PLATE_TIE = (10.0, 3.6)         # mm, kelepçe yuvası (uzunluk x genişlik)
 # Plakadaki kart deseni. Pi Zero ailesi 58 x 23 mm; muadil kart alınırsa
 # yalnız bu iki sayı değişip tepecan_plaka.stl yeniden üretiliyor.
 BOARD_HOLE_X, BOARD_HOLE_Y = 58.0 / 2, 23.0 / 2     # mm; configure() birime çevirir
@@ -438,7 +441,7 @@ def configure(height_mm=DEFAULT_HEIGHT):
     PLATE_STAND = 3.0 / SCALE
     PLATE_R = 4.0 / SCALE
     PLATE_EDGE = 4.0 / SCALE
-    PLATE_TIE = (8.0 / SCALE, 2.6 / SCALE)
+    PLATE_TIE = (10.0 / SCALE, 3.6 / SCALE)
     BTN_HOLE = 2.1 / SCALE
     BTN_POCKET = 3.3 / SCALE
     BTN_WALL = 1.5 / SCALE
