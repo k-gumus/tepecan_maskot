@@ -33,7 +33,7 @@ kod da sol kanalı okuyor. Pinleri değiştirmek istersen `main/tepecan.h`.
 
 ## Derleme ve yükleme
 
-ESP-IDF v5.1 veya üstü gerekiyor.
+ESP-IDF v5.1 veya üstü gerekiyor; v5.3 ve v6.1 ile derlendiği doğrulandı.
 
 ```bash
 idf.py set-target esp32s3
@@ -43,6 +43,10 @@ idf.py -p /dev/ttyUSB0 flash monitor
 
 > DevKitC-1'de **iki USB-C portu** var (biri native USB, biri UART).
 > Yükleme olmazsa diğerini dene — en çok takılınan yer burası.
+
+Windows'ta projeyi **ASCII bir yola** koy (`C:\esp\tepecan` gibi): ESP-IDF
+Türkçe karakterli yollarda (`Masaüstü`) takılıyor, OneDrive içinde derlemek de
+dosya kilidi sorunları çıkarıyor.
 
 Bağımlılıklar (`esp-tflite-micro`, `esp-nn`, `esp-micro-speech-features`)
 `main/idf_component.yml` ile otomatik iniyor, elle bir şey kurmana gerek yok.
