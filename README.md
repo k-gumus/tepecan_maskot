@@ -20,7 +20,7 @@ hoparlöründen söyler.
 
 ```
 govde/        3D model — parametrik script, baskıya hazır STL'ler, önizlemeler
-yazilim/      maskot/ (Pi üzerinde çalışan program) ve sunucu/ (ses↔metin servisi)
+yazilim/      esp32/ (maskotun içindeki firmware) ve sunucu/ (ses↔metin↔cevap)
 dokuman/      yapım kılavuzu (PDF), bağlantı şeması, üretim scriptleri
 ```
 
@@ -32,7 +32,7 @@ dokuman/      yapım kılavuzu (PDF), bağlantı şeması, üretim scriptleri
 ## Nasıl çalışıyor
 
 ```
-   MASKOT (aarch64 SBC)                    BEYİN SUNUCUSU (bir PC)
+   MASKOT (ESP32-S3)                       BEYİN SUNUCUSU (bir PC)
    "Hey Tepecan" / buton
    mikrofon kaydeder      ──── Wi-Fi ───▶  /stt    faster-whisper   (ses → metin)
                                            :11434  Ollama, qwen3:4b (cevabı üretir)
@@ -68,7 +68,7 @@ python3 dogrula.py                       # elektronik gerçekten sığıyor mu
 | `stl/tepecan_body.stl` | İçi boş gövde — sırt açıklığı, kapak kenarı, vida boss'ları, hoparlör adası, kart kuleleri |
 | `stl/tepecan_lid.stl` | Sırt kapağı, baskı pozisyonunda |
 | `stl/tepecan_buton.stl` | Kapaktaki butonun kapağı (Ø10 mm başlık, 5 mm sap) |
-| `stl/tepecan_plaka.stl` | Kart adaptör plakası (66 × 36 × 6 mm, ~20 dk) |
+| `stl/tepecan_plaka.stl` | Kart tepsisi (72 × 36 × 3 mm, ~20 dk) |
 | `stl/tepecan_solid.stl` | İçi dolu vitrin figürü (elektronik yoksa bunu bas) |
 | `stl/tepesu.stl` | Tepesu: elektroniksiz ikiz, kaldırdığı elinde QR kartı klipsi |
 
@@ -87,8 +87,8 @@ anlamına geliyor. Hangi kartın alınacağı belli olmadığı için kavitenin 
 ettiği en büyük kart zarfını da ölçüp yazdırıyor.
 
 **Kart gövdeye kilitli değil.** Gövdede yalnız genel amaçlı dört kule var;
-kartın kendi delik deseni, ayrı basılan `tepecan_plaka.stl` üzerinde. Kart
-değişirse 30-45 saatlik gövde değil, 20 dakikalık plaka yeniden basılıyor —
+karta özel her şey ayrı basılan `tepecan_plaka.stl` tepsisinde. Kart
+değişirse 30-45 saatlik gövde değil, 20 dakikalık tepsi yeniden basılıyor —
 `BOARD_HOLE_X` / `BOARD_HOLE_Y` (gerekirse `BOARD_OFFSET_Y`) değiştirilip
 yeniden üretiliyor.
 
@@ -97,8 +97,8 @@ yeniden üretiliyor.
 | Kapak açıklığı / geçiş | 73 × 62 mm / 65 × 54 mm |
 | Gövde kuleleri | Ø6 mm, 44 × 28 mm aralık (karttan bağımsız), üstleri tabandan 63.8 mm'de |
 | Kule kılavuz deliği | Ø2.1 mm × 8 mm (M2.5 kendinden kılavuzlu) |
-| Adaptör plakası | 66 × 36 × 6 mm, üstünde kartın kendi deseni |
-| Kart için yer | 74.5 × 30, 64.8 × 40 ya da 63.4 × 55 mm; plaka üstünde 40 mm yükseklik |
+| Kart tepsisi | 72 × 36 × 3 mm, kart kelepçeyle bağlanıyor |
+| Kart için yer | 69.5 × 30, 63.4 × 40-55 mm; tepsi üstünde 40 mm yükseklik |
 | Hoparlör yuvası | ızgara Ø30 mm, cep Ø32 mm, düz omuz |
 | Kapak vidası | 2 × M3, Ø18.7 mm boss, 12 mm derin |
 | Buton | kapakta, Ø4.2 mm delik + 6.6 mm kare cep |
@@ -137,24 +137,10 @@ erişim noktasını açıyor, telefondan `http://192.168.4.1` üzerinden ağ ve
 sunucu adresi giriliyor. Ayrıntılar ve uyandırma kelimesi modelinin
 eğitimi: [`yazilim/esp32/README.md`](yazilim/esp32/README.md).
 
-<details><summary>Eski yol: aarch64 Linux kartı (Raspberry Pi vb.)</summary>
-
-```bash
-cd yazilim/maskot
-pip install -r requirements.txt
-
-python3 -m sounddevice          # USB ses kartının indeksini bul
-export TEPECAN_MIC="USB"        # indeks ya da adın bir parçası
-export TEPECAN_SPK="USB"
-python3 tepecan.py
-```
-
-</details>
-
-**"Hey Tepecan"** de ya da sırt kapağındaki butona bas — kayıt sen susunca kendiliğinden
-biter. Uyandırma kelimesi modelini edinmek için
-[`yazilim/maskot/UYANDIRMA.md`](yazilim/maskot/UYANDIRMA.md); model dosyası
-yoksa program yine çalışır, sadece buton tetikler.
+Sırt kapağındaki **butona bas** — kayıt sen susunca kendiliğinden biter.
+**"Hey Tepecan"** ile uyandırma da kodda var ama varsayılan kapalı: ifadeye
+özel eğitilmiş bir microWakeWord modeli gerekiyor. Açma yolu ve model eğitimi
+[`yazilim/esp32/README.md`](yazilim/esp32/README.md) içinde.
 
 ### Ayarlar
 
@@ -174,7 +160,7 @@ yoksa program yine çalışır, sadece buton tetikler.
 Model 4 milyar parametreli; ondan bilgiyi *bilmesini* değil, verdiğimiz metni
 *okumasını* istiyoruz. Kaliteyi belirleyen sıra:
 
-1. **`yazilim/maskot/bilgiler.txt` dosyasını doldur.** Kulübe dair her gerçek
+1. **`yazilim/sunucu/bilgiler.txt` dosyasını doldur.** Kulübe dair her gerçek
    buraya; her soruda modele veriliyor. Doğru cevabı sağlayan asıl mekanizma bu.
 2. `persona.txt` içindeki 2-3 cümle sınırını gevşetme — küçük modeller
    uzadıkça dağılır.

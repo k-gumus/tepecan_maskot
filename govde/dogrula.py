@@ -110,11 +110,11 @@ print("\n--- iç hacim ---")
 plate_z0 = Z(T.BOARD_Z)                             # kulelerin tepesi
 board_z0 = plate_z0 + M(T.PLATE_T + T.PLATE_STAND)  # kartın alt yüzeyi
 
-# 1. Referans kart zarfı: Pi Zero ayak izi, konnektörlerle 18 mm yükseklik.
-#    HAT yok (Pi bulunamıyor, USB ses yolu kullanılıyor), ama USB dongle ve
-#    kablo için HAT'inkine yakın bir yükseklik bırakıyoruz.
-fits("kart (65x30x18 mm, +%.0f mm boşluk)" % CLEAR, body,
-     box((65 + 2 * CLEAR, 30 + 2 * CLEAR, 18 + CLEAR),
+# 1. Gerçek kart zarfı: ESP32-S3-DevKitC-1, konnektörler ve kablolarla
+#    birlikte 18 mm yükseklik.
+fits("kart (%.0fx%.0fx18 mm, +%.0f mm boşluk)" % (M(T.BOARD_W), M(T.BOARD_D), CLEAR),
+     body,
+     box((M(T.BOARD_W) + 2 * CLEAR, M(T.BOARD_D) + 2 * CLEAR, 18 + CLEAR),
          (0, M(T.BOARD_Y), board_z0 + 9 + CLEAR / 2)))
 
 # 2. Hangi kartın alınacağı belli değil: kavitenin kabul ettiği zarfı ölçüp
@@ -239,12 +239,12 @@ else:
 pw, pd, pt = plate.extents
 plate_diag = float(np.hypot(pw, pd))
 if pw <= w_open and pd <= h_open:
-    ok("adaptör plakası (%.1f x %.1f mm) açıklıktan düz geçiyor" % (pw, pd))
+    ok("kart tepsisi (%.1f x %.1f mm) açıklıktan düz geçiyor" % (pw, pd))
 elif plate_diag + 2.0 <= diag:
-    ok("adaptör plakası (%.1f x %.1f mm) yan yatırılarak geçiyor "
-       "(köşegen %.1f < %.1f mm)" % (pw, pd, plate_diag, diag))
+    ok("kart tepsisi (%.1f x %.1f mm) yan yatırılarak geçiyor "
+       "(köşegen %.1f < %.1f mm, pay %.1f)" % (pw, pd, plate_diag, diag, diag - plate_diag))
 else:
-    bad("adaptör plakası açıklıktan geçmiyor: köşegen %.1f > %.1f mm"
+    bad("kart tepsisi açıklıktan geçmiyor: köşegen %.1f > %.1f mm"
         % (plate_diag, diag))
 
 # Tornavida erişimi: hem gövde kulelerinin hem plaka standoff'larının vidaları
@@ -263,8 +263,10 @@ def half_width_at(z):
         np.sqrt(max(0.0, corner_r ** 2 - (d - straight) ** 2)))
 
 
-for label, z, hx in (("gövde kulesi", plate_z0, M(T.PLATE_HOLE_X)),
-                     ("plaka standoff'u", board_z0, M(T.BOARD_HOLE_X))):
+erisim = [("gövde kulesi", plate_z0, M(T.PLATE_HOLE_X))]
+if T.BOARD_HOLE_X > 0.0:
+    erisim.append(("tepsi standoff'u", board_z0, M(T.BOARD_HOLE_X)))
+for label, z, hx in erisim:
     margin = half_width_at(z) - hx
     if margin >= 3.0:
         ok("%s vidalarına erişim: açıklık kenarına %.1f mm (tornavida girer)"
@@ -276,10 +278,13 @@ print("\n--- montaj ölçüleri ---")
 print("     gövde kule aralığı  %.1f x %.1f mm (karttan bağımsız)"
       % (M(2 * T.PLATE_HOLE_X), M(2 * T.PLATE_HOLE_Y)))
 print("     kule üst yüzeyi     z = %.1f mm (tabandan)" % plate_z0)
-print("     plaka               %.1f x %.1f x %.1f mm, %.1f cm3"
+print("     tepsi               %.1f x %.1f x %.1f mm, %.1f cm3"
       % (pw, pd, pt, plate.volume / 1000.0))
-print("     plakadaki kart deseni %.1f x %.1f mm (Pi Zero ailesi: 58.0 x 23.0)"
-      % (M(2 * T.BOARD_HOLE_X), M(2 * T.BOARD_HOLE_Y)))
+if T.BOARD_HOLE_X > 0.0:
+    print("     tepsideki kart deseni %.1f x %.1f mm"
+          % (M(2 * T.BOARD_HOLE_X), M(2 * T.BOARD_HOLE_Y)))
+else:
+    print("     kart tepsiye kelepçeyle bağlanıyor (kartta vida deliği yok)")
 print("     kart alt yüzeyi     z = %.1f mm, üstü (18 mm) z = %.1f mm"
       % (board_z0, board_z0 + 18.0))
 print("     kart önündeki sınır  hoparlör adası y = %.1f mm" % spk_back)
