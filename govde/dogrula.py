@@ -35,7 +35,10 @@ def bad(msg):
 
 
 # --------------------------------------------------------------------------
-T.configure(240.0)
+_h = float(sys.argv[sys.argv.index("--height") + 1]) if "--height" in sys.argv \
+    else T.DEFAULT_HEIGHT
+T.configure(_h)
+print("doğrulama boyu: %.0f mm" % _h)
 S = T.SCALE
 BASE_TRIM = 2.0                 # build_all'ın tabandan kestiği tasarım birimi
 

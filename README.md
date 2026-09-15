@@ -124,7 +124,20 @@ pip install -r requirements.txt
 uvicorn beyin:app --host 0.0.0.0 --port 8000
 ```
 
-**Maskot** (aarch64 SBC — Orange Pi Zero 2W vb.; 64-bit Linux şart):
+**Maskot** — ESP32-S3 (`yazilim/esp32/`, ESP-IDF):
+
+```bash
+cd yazilim/esp32
+idf.py set-target esp32s3 && idf.py build
+idf.py -p /dev/ttyUSB0 flash monitor
+```
+
+Wi-Fi bilgisi koda gömülü değil: kart ilk açılışta `Tepecan-Kurulum`
+erişim noktasını açıyor, telefondan `http://192.168.4.1` üzerinden ağ ve
+sunucu adresi giriliyor. Ayrıntılar ve uyandırma kelimesi modelinin
+eğitimi: [`yazilim/esp32/README.md`](yazilim/esp32/README.md).
+
+<details><summary>Eski yol: aarch64 Linux kartı (Raspberry Pi vb.)</summary>
 
 ```bash
 cd yazilim/maskot
@@ -135,6 +148,8 @@ export TEPECAN_MIC="USB"        # indeks ya da adın bir parçası
 export TEPECAN_SPK="USB"
 python3 tepecan.py
 ```
+
+</details>
 
 **"Hey Tepecan"** de ya da sırt kapağındaki butona bas — kayıt sen susunca kendiliğinden
 biter. Uyandırma kelimesi modelini edinmek için

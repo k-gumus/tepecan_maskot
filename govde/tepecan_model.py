@@ -296,7 +296,10 @@ def text_solid(txt, cap_height, depth, center, max_width=None, facing="+Y"):
 # Geometry parameters, in design units (see SCALE below)
 # --------------------------------------------------------------------------
 NATURAL_HEIGHT = 154.2          # height of the untransformed figure
-DEFAULT_HEIGHT = 240.0          # printed height, antenna tips included
+# 256 x 256 x 256 mm yazıcı hedefleniyor. 240 mm sığıyor ama Z'de yalnız 16 mm
+# pay kalıyor; 230 mm'de 26 mm pay var ve adaptör plakası kapak açıklığından
+# hâlâ 6.4 mm payla geçiyor. 220'de o pay 2.8 mm'ye düşüyor, 210'da geçmiyor.
+DEFAULT_HEIGHT = 230.0          # printed height, antenna tips included
 
 TORSO_C = (0.0, 0.0, 52.0)
 TORSO_R = (31.0, 26.0, 30.0)
@@ -316,7 +319,10 @@ EYE_SINK = 1.2                  # how far its equator sits under the surface
 # Açıklık genişliği kartın kendisine göre değil, kartı vidalayan tornavidaya
 # göre: kule delikleri x = +-29 mm ve açıklığın alt köşe yuvarlağının hemen
 # içinde kalıyor. 45 birimde kenara 1.4 mm kalıyordu, tornavida dik giremiyordu.
-HATCH_W = 47.0                  # opening width  (x) - 73 mm
+# 47 birim 240 mm'de yetiyordu (3.7 mm pay) ama varsayılan 230'a inince pay
+# 2.3 mm'ye düştü: açıklık figürle birlikte küçülüyor, kule deliği (x=±29 mm)
+# ise mutlak. 49 birim 230 mm'de 3.8 mm bırakıyor.
+HATCH_W = 49.0                  # opening width  (x)
 HATCH_H = 40.0                  # opening height (z) - 62 mm
 HATCH_Z = 54.0
 HATCH_R = 5.0                   # corner radius
