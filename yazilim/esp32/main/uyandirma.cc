@@ -13,6 +13,18 @@
 #include "uyandirma.h"
 #include "tepecan.h"
 
+#if !UYANDIRMA_ETKIN
+
+/* Kapalı derleme: buton tek tetikleyici. tepecan.h'deki UYANDIRMA_ETKIN
+ * 1 yapılınca aşağıdaki gerçek uygulama derleniyor. */
+bool uyandirma_baslat(const char *yol) { (void)yol; return false; }
+bool uyandirma_acik(void) { return false; }
+bool uyandirma_dinle(const int16_t *b, size_t n) { (void)b; (void)n; return false; }
+void uyandirma_sifirla(void) {}
+
+#else
+
+
 #include <cstdio>
 #include <cstring>
 #include <cstdlib>
@@ -177,3 +189,5 @@ bool uyandirma_dinle(const int16_t *blok, size_t ornek)
     }
     return false;
 }
+
+#endif /* UYANDIRMA_ETKIN */

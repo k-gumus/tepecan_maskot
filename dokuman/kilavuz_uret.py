@@ -133,8 +133,7 @@ story.append(Paragraph("Konuşan maskot — yapım kılavuzu", ParagraphStyle(
     spaceBefore=4)))
 story.append(Spacer(1, 8))
 story.append(Paragraph(
-    "3D baskı gövde · aarch64 tek kart bilgisayar · yerel yapay zekâ · "
-    "Türkçe sesli sohbet",
+    "3D baskı gövde · ESP32-S3 · yerel yapay zekâ · Türkçe sesli sohbet",
     ParagraphStyle("cover3", fontName="DejaVu", fontSize=10, leading=15,
                    textColor=MUTED)))
 story.append(Spacer(1, 20))
@@ -152,7 +151,7 @@ p("Maskot dinler, sorulanı yapay zekâya iletir, cevabı içindeki hoparlörden
   "yazmak — bu sayede 512 MB RAM'li küçük bir kart yeter ve token maliyeti oluşmaz.")
 
 code("""
-   MASKOT (aarch64 SBC)                    BEYİN SUNUCUSU (bir PC)
+   MASKOT (ESP32-S3)                       BEYİN SUNUCUSU (bir PC)
    ─────────────────────                   ────────────────────────
    butona basılır
    mikrofon kaydeder      ──── Wi-Fi ───▶  /stt    faster-whisper   (ses → metin)
@@ -174,10 +173,15 @@ table(
       "85 × 56 mm bir kart maskotun içine girmiyor: kapak açıklığının köşegeni "
       "85.1 mm, o kartın köşegeni 85.8 mm. Kapalı PLA kasada da ısınıyor. "
       "Çözdüğü tek darboğaz zaten sunucuya taşındı."],
-     ["Raspberry Pi yerine muadil",
-      "Pi Zero 2 W Türkiye'de bulunamıyor. Kart ince istemci olduğu için marka "
-      "önemli değil; tek şart 64-bit (aarch64), çünkü openWakeWord'ün istediği "
-      "onnxruntime yalnız onun için derleniyor."],
+     ["Linux kartı yerine ESP32-S3",
+      "Raspberry Pi de, muadil aarch64 kartlar da Türkiye'de bulunamadı; "
+      "ESP32-S3 her yerde var ve üçte bir fiyatta. Kart zaten ince istemci "
+      "olduğu için işletim sistemine ihtiyaç yok: SD kart, açılış süresi ve "
+      "sürücü avı tamamen kalkıyor."],
+     ["Ses I2S üzerinden",
+      "ESP32-S3'ün dahili DAC'ı yok (klasik ESP32'de vardı, S3'te kaldırıldı), "
+      "yani analog çıkış seçenek değil. MAX98357A hem DAC hem amfi olduğu için "
+      "tek modülle çözülüyor."],
      ["Metin → ses de sunucuda",
       "Piper'ın Türkçe medium sesi Zero 2 W'de gerçek zamandan yavaş kalabiliyor. "
       "Sunucuda çalıştırınca bu risk tamamen kalkar, Pi'ye hazır ses gelir."],
@@ -199,60 +203,53 @@ h1("2. Malzeme listesi")
 p("Fiyatlar kabaca, sadece büyüklük fikri versin diye.")
 table(
     ["#", "Parça", "Neden bu", "≈"],
-    [["1", "aarch64 SBC (Orange Pi Zero 2W, Radxa Zero vb.)",
-      "Maskotun beyni değil, kulağı ve ağzı: mikrofonu dinler, uyandırma "
-      "kelimesini yakalar, beyin sunucusuna gönderir. Raspberry Pi Zero 2 W "
-      "ilk tercihti ama Türkiye'de bulunamıyor. Şart: 64-bit (aarch64) — "
-      "openWakeWord'ün istediği onnxruntime yalnız bunun için derleniyor. "
-      "Gövdeye 74.5 × 30, 64.8 × 40 ya da 63.4 × 55 mm'ye kadar kart sığıyor - "
-      "yani Pi Zero formatı da, Orange Pi Zero 3 gibi daha kare kartlar da.", "$15"],
-     ["2", "USB ses kartı (CM108/CM119 yongalı)",
-      "Mikrofon girişi + hat çıkışı. Sınıf-uyumlu, yani hiçbir kartta sürücü "
-      "istemiyor. ReSpeaker HAT'in yerini tutuyor: HAT yalnız Raspberry Pi'de "
-      "çalışıyor (seeed-voicecard device-tree overlay'i).", "$4"],
-     ["3", "Elektret mikrofon kapsülü (3.5 mm fişli)",
-      "Ses kartının mic girişine takılır. Kapaktaki havalandırma yarıkları "
-      "(3 × 37 × 4 mm = 449 mm²) sesi geçirmeye yetiyor, ayrı port gerekmiyor.",
-      "$2"],
-     ["4", "PAM8403 amfi modülü",
-      "Ses kartının hat çıkışı hoparlörü süremez. 2 × 3 W D-sınıfı, 5 V'u "
-      "kartın header'ından alıyor.", "$2"],
-     ["5", "Ø30 mm 4 Ω 3 W yuvarlak hoparlör",
-      "Gövdedeki yuva bu ölçüye göre: ızgara Ø30 mm, oturma omzu Ø34.8 mm, "
-      "en fazla 8 mm gövde derinliği. Ø40 mm sığmıyor — göğüs küresel olduğu "
-      "için o ayak izinde oturma omzu kartın önüne giriyor.", "$3"],
-     ["6", "microSD 32 GB, A1 sınıfı",
-      "İşletim sistemi. A1 sınıfı olmayan kartlar kartı belirgin yavaşlatır.", "$6"],
-     ["7", "5 V 3 A adaptör + karta uyan kablo",
-      "Kart + amfi tepe akımı ~800 mA. Zayıf adaptör ses bozulmasına yol açar. "
-      "Kartın girişi USB-C mi micro-USB mi, sipariş ederken bak.", "$8"],
-     ["8", "14 × 14 mm alüminyum soğutucu",
-      "Kapalı PLA kasada işlemci sıcaklığını düşürür.", "$1"],
-     ["9", "M2.5 × 8 mm kendinden kılavuzlu vida (8 adet)",
-      "Dördü adaptör plakasını gövde kulelerine, dördü kartı plakanın "
-      "standoff'larına. Kılavuz delikleri Ø2.1 mm hazır, ara pula gerek yok.", "$3"],
-     ["10", "6 × 6 × 4.3 mm tactile switch + ince kablo",
-      "Sırt kapağındaki bas-konuş butonu. Uyandırma kelimesi çalışırken de "
-      "yedek kalıyor. Basılan kapağı (tepecan_buton.stl) sen basıyorsun.", "$1"],
-     ["11", "M3 × 8 kendinden kılavuzlu vida (2 adet)",
+    [["1", "ESP32-S3-DevKitC-1, N16R8",
+      "Maskotun beyni değil, kulağı ve ağzı: mikrofonu dinler, beyin "
+      "sunucusuna gönderir, gelen cevabı çalar. N16R8 varyantı şart — 8 MB "
+      "PSRAM'de kayıt tamponu ve Piper'dan dönen WAV duruyor. 64 × 28 mm, "
+      "montaj deliği yok (tepsiye kelepçeyle bağlanıyor).", "$8"],
+     ["2", "INMP441 I2S mikrofon modülü",
+      "Dijital çıkışlı, doğrudan karta bağlanıyor. L/R bacağı GND'ye gider, "
+      "kod sol kanalı okuyor.", "$3"],
+     ["3", "MAX98357A I2S amfi modülü",
+      "Hem DAC hem 3 W sınıf-D amfi. ESP32-S3'ün dahili DAC'ı olmadığı için "
+      "sesin analoğa çevrilmesi burada oluyor. VIN 5 V ister, 3V3 değil. "
+      "Hoparlör çıkışı vidalı klemens — lehim gerekmiyor.", "$4"],
+     ["4", "Ø30 mm 4-8 Ω hoparlör",
+      "Gövdedeki yuva bu ölçüye göre: ızgara Ø30 mm, oturma omzu Ø32 mm, "
+      "en fazla 8 mm gövde derinliği. Ø36 sığmıyor — göğüs küresel olduğu "
+      "için o ayak izinde oturma omzu kartın önüne giriyor. 8 Ω olur, "
+      "biraz daha kısık çalar.", "$3"],
+     ["5", "5 V 2 A adaptör + USB-C kablo",
+      "Telefon şarjı iş görür. Namlu uçlu adaptör ALMA — kart USB-C ile "
+      "besleniyor.", "$5"],
+     ["6", "6 × 6 × 4.3 mm tactile switch + ince kablo",
+      "Sırt kapağındaki bas-konuş butonu. Uyandırma kelimesi varsayılan "
+      "kapalı olduğu için şimdilik tek tetikleyici bu. Basılan kapağı "
+      "(tepecan_buton.stl) sen basıyorsun.", "$1"],
+     ["7", "M2.5 × 8 mm kendinden kılavuzlu vida (4 adet)",
+      "Tepsiyi gövde kulelerine sabitlemek için. Kılavuz delikleri Ø2.1 mm "
+      "hazır.", "$2"],
+     ["8", "M3 × 8 kendinden kılavuzlu vida (2 adet)",
       "Sırt kapağını tutturmak için. Kasada yuvaları hazır.", "$1"],
-     ["12", "Plastik kelepçe (kablo bağı, birkaç adet)",
-      "USB ses kartı ve amfi modülünü adaptör plakasının köşelerindeki "
-      "yuvalara bağlamak için. Modüllere özel yuva yok, bilerek.", "$1"],
-     ["13", "PLA filament, mavi (~400 g)",
+     ["9", "Plastik kelepçe (2.5 mm, birkaç adet)",
+      "Kartı, amfiyi ve mikrofonu tepsiye bağlamak için. Tepside 3.6 mm'lik "
+      "yuvalar hazır — kartta vida deliği olmadığı için montaj böyle.", "$1"],
+     ["10", "Havya + lehim teli",
+      "Modüller lehimsiz geliyor. Toplam ~22 nokta: kartta tek header "
+      "şeridi (bütün kullanılan pinler aynı kenarda), mikrofonda 6, "
+      "amfide 5. Yarım saatlik iş.", "—"],
+     ["11", "PLA filament, mavi (~400 g)",
       "Gövde. Güneşte/araçta kalacaksa PETG tercih et.", "$12"],
      ["—", "Beyin sunucusu: kulüpte zaten olan bir PC",
       "16 GB RAM yeterli. 8-12 GB VRAM'li bir ekran kartı varsa cevaplar "
-      "üç kat hızlanır.", "—"]],
+      "üç kat hızlanır. Kurulum: yazilim/sunucu/kur.sh", "—"]],
     [8 * mm, 42 * mm, 92 * mm, 14 * mm])
 
-note("Kartı ararken tek kırmızı çizgi 64-bit: ARMv6 (Raspberry Pi Zero W 1. nesil) "
-     "ve ARMv7 kartlarda onnxruntime/tflite tekerleği yok, uyandırma kelimesi "
-     "çalışmaz. Amazon'da 2.000-2.400 TL'ye görünen Pi Zero W / Zero WH'ler bu "
-     "gruptan, alma. Raspberry Pi Zero 2 W bulunursa hepsini o karşılar; o zaman "
-     "ReSpeaker 2-Mics Pi HAT alıp 2, 3 ve 4 numaralı satırları atlayabilirsin, "
-     "ama HAT'in seeed-voicecard sürücüsü güncel Raspberry Pi OS'ta sorun "
-     "çıkarabiliyor. USB yolu daha çok modül ama sıfır sürücü işi.")
+note("Kart alırken N16R8 yazısına dikkat: PSRAM'siz ESP32-S3 varyantları da "
+     "satılıyor ve onlarda ses tamponları sığmıyor. Klasik ESP32 (S3 değil) da "
+     "çalışır ama uyandırma kelimesi için S3'ün yapay zekâ komutları lazım. "
+     "Kartta iki USB-C portu var; yükleme birinde olmazsa diğerini dene.")
 
 # ==========================================================================
 story.append(PageBreak())
@@ -267,8 +264,8 @@ table(
       "delikleriyle, baskı pozisyonunda.", "1"],
      ["tepecan_buton.stl", "Kapaktaki butonun kapağı: Ø10 mm başlık, 5 mm sap. "
       "Yatık basılır, destek istemez.", "1"],
-     ["tepecan_plaka.stl", "Kart adaptör plakası: altı gövde kulelerine oturur, "
-      "üstünde kartın kendi delik deseninde standoff'lar var. 66 × 36 × 6 mm, "
+     ["tepecan_plaka.stl", "Kart tepsisi: altı gövde kulelerine oturur, "
+      "kart üstüne kelepçeyle bağlanır. 72 × 36 × 3 mm, "
       "~20 dakika. Kart değişirse yalnız bu yeniden basılır.", "1"],
      ["tepecan_solid.stl", "İçi dolu vitrin figürü. Elektronik koymayacaksan "
       "bunu bas, diğerlerini atla.", "0-1"]],
@@ -306,11 +303,12 @@ bullets([
     "<b>Kart montaj kuleleri</b> — Ø6 mm, dört adet, <b>karttan bağımsız</b> "
     "44 × 28 mm aralıkta. Üst yüzeyleri tabandan 63.8 mm'de, tepelerinde M2.5 için "
     "Ø2.1 mm kılavuz delik, 8 mm derin. Kartın kendi delik deseni bu kulelerde "
-    "değil, üstlerine vidalanan adaptör plakasında.",
+    "değil, üstlerine vidalanan tepside.",
     "<b>Adaptör plakası</b> — 66 × 36 × 6 mm ayrı parça. Gövdeyi kart seçiminden "
     "kurtarıyor: kart değişirse 30-45 saatlik gövde değil, 20 dakikalık plaka "
-    "yeniden basılıyor. Köşelerindeki kelepçe yuvalarına USB ses kartı ve amfi "
-    "modülü bağlanıyor.",
+    "yeniden basılıyor. ESP32-S3-DevKitC-1'de montaj deliği olmadığı için kart "
+    "vidalanmıyor, kelepçeyle bağlanıyor; köşe yuvalarına da amfi ve mikrofon "
+    "bağlanıyor.",
     "<b>Kapak açıklığı</b> — dıştan 73 × 62 mm, oturma kenarından geçiş 65 × 54 mm, "
     "köşegen 85 mm. Genişliği kart değil, kartı vidalayan tornavida belirledi: "
     "plakadaki vidalar x = ±29 mm'de ve açıklığın alt köşesine yakın; bu ölçüde "
@@ -347,12 +345,12 @@ code("""
    │  ║ HOPARLÖR ║  Ø30 mm, öne bakar,                    │  z = 50-80 mm
    │  ║ + adası  ║  göğüs ızgarasından konuşur            │
    │  ╚══════════╝   ┌────────────────────────────────┐   │
-   │                 │  KART (aarch64 SBC)            │   │  z = 70-88 mm
+   │                 │  ESP32-S3 (64 x 28 mm)         │   │  z = 67-85 mm
    │                 ├────────────────────────────────┤   │
    │                 │  ADAPTÖR PLAKASI               │   │  z = 64-70 mm
    │      4 kule ────┴────────────────────────────────┘   │
    │      z = 34-64 mm                                    │
-   │                 USB ses kartı ve amfi: plakanın      │
+   │                 MAX98357A ve INMP441: tepsinin       │
    │                 köşelerine kelepçeyle bağlanır       │
    │                                  vida bossu * z=59 mm│
    │   kablo yuvasi ------------------------------->      │  z = 38 mm
@@ -387,13 +385,14 @@ bullets([
     "artırır, bedava kazançtır.",
     "İşlemcinin üstüne soğutucuyu yapıştır (kartı plakaya vidalamadan önce yap, "
     "sonra elin girmez).",
-    "Kartı plakanın üstündeki dört standoff'a M2.5 vidalarla sabitle. USB ses "
-    "kartını ve PAM8403'ü plakanın köşe yuvalarına kelepçeyle bağla, kabloları "
-    "kısa kes. Bu işi gövdenin dışında yap — plaka avucunda dururken çok rahat.",
+    "Kartı tepsiye kelepçeyle bağla (kartta vida deliği yok; tepside kartın "
+    "altından geçen iki sıra yuva var). MAX98357A ve INMP441'i köşe yuvalarına "
+    "bağla, kabloları kısa kes. Bu işi gövdenin dışında yap — tepsi avucunda "
+    "dururken çok rahat.",
     "Hazır plakayı açıklıktan <b>yan yatırarak</b> içeri sok (düz geçmez, köşegen "
     "75 mm) ve dört M2.5 vidayla gövde kulelerine sabitle. Kartın güç girişi "
     "kablo yuvasına baksın.",
-    "Hoparlör kablosunu PAM8403'ün çıkışına, mikrofonu ses kartının mic girişine tak.",
+    "Hoparlörün iki telini MAX98357A'nın vidalı klemensine sıkıştır.",
     "Buton kapağını (tepecan_buton.stl) sırt kapağının <b>dışından</b> deliğe geçir. "
     "Switch'i kapağın iç yüzündeki cebe, pistonu kapağa bakacak şekilde bastır; sap "
     "tam pistona dayanır. İki telini kartın bir GPIO hattına ve GND'ye bağla. "
@@ -406,21 +405,20 @@ bullets([
 h2("Kablolama")
 table(
     ["Nereden", "Nereye", "Not"],
-    [["Elektret mikrofon", "USB ses kartı, mic girişi", "3.5 mm fiş"],
-     ["USB ses kartı, hat çıkışı", "PAM8403 girişi", "3.5 mm fiş ya da iki tel"],
-     ["PAM8403 çıkışı", "Hoparlör (+/−)", "Kutup önemli değil, tek hoparlör var"],
-     ["PAM8403 besleme", "Kartın 5 V ve GND pini", "Amfi 5 V ister, 3.3 V değil"],
-     ["USB ses kartı", "Kartın USB portu", "USB-C ise araya adaptör gerekir"],
+    [["INMP441 VDD / GND", "Kartın 3V3 ve GND pini", "L/R bacağı da GND'ye"],
+     ["INMP441 SCK / WS / SD", "GPIO 4 / 5 / 6", "I2S giriş"],
+     ["MAX98357A VIN / GND", "Kartın 5Vin ve GND pini", "5 V ister, 3V3 değil"],
+     ["MAX98357A BCLK / LRC / DIN", "GPIO 15 / 16 / 17", "I2S çıkış"],
+     ["MAX98357A çıkışı", "Hoparlör (+/−)", "Vidalı klemens, kutup önemsiz"],
      ["Buton bacak 1", "Bir GPIO hattı", "Kodda TEPECAN_BUTTON_PIN / "
       "TEPECAN_BUTTON_CHIP"],
      ["Buton bacak 2", "GND", ""],
      ["5 V adaptör", "Kartın güç girişi", "Varsa veri portuna değil, güç portuna"]],
     [34 * mm, 62 * mm, 60 * mm])
 
-note("Ses cihazını seçmeyi unutma: USB ses kartı çoğu kartta ALSA'nın varsayılanı "
-     "olmuyor. <font face='Mono'>python3 -m sounddevice</font> cihazları listeler, "
-     "sonra <font face='Mono'>TEPECAN_MIC</font> ve <font face='Mono'>TEPECAN_SPK</font> "
-     "ortam değişkenlerine indeksi ya da adın bir parçasını yaz.")
+note("Kullanılan pinlerin hepsi kartın tek kenarında: 5Vin, GND, 18, 17, 16, "
+     "15, 6, 5, 4, 3V3. Yani tek bir header şeridi lehimlemek yetiyor, diğer "
+     "kenara hiç dokunma.")
 
 picture("dokuman/devre_semasi.png", 150 * mm, "Bağlantı şeması.")
 
@@ -477,94 +475,63 @@ story.append(PageBreak())
 h1("6. Maskot (Pi) kurulumu")
 p("Raspberry Pi OS Lite, 64 bit. Kurulum sırasında Wi-Fi ve SSH'ı aç.")
 
-h2("Ses kurulumu")
-p("USB ses kartı sınıf-uyumlu, yani sürücü kurulumu yok. Tek iş doğru cihazı "
-  "seçmek.")
+h2("Firmware'i yükle")
+p("ESP-IDF v5.1 veya üstü gerekiyor. En kolay yol VS Code + Espressif'in "
+  "ESP-IDF eklentisi; eklenti toolchain'i kendisi kuruyor.")
 code("""
-sudo apt update && sudo apt install -y python3-pip libportaudio2
-
-# Kart görünüyor mu:
-arecord -l          # USB ses kartı listede olmalı
-aplay -l
-
-# Kayıt ve çalma testi:
-arecord -d 3 -f cd deneme.wav && aplay deneme.wav
-
-# Python tarafında hangi indeks olduğunu gör:
-python3 -m sounddevice
-
-# Sonra indeksi (ya da adın bir parçasını) ortam değişkenine yaz:
-export TEPECAN_MIC="USB"
-export TEPECAN_SPK="USB"
+cd yazilim/esp32
+idf.py set-target esp32s3
+idf.py build
+idf.py -p COM3 flash monitor        # Linux'ta /dev/ttyACM0 gibi
 """)
 
-note("Mikrofon sesi kısık gelirse <font face='Mono'>alsamixer</font> ile USB "
-     "kartını seç (F6) ve Mic ile Capture seviyelerini yükselt; birçok CM108 "
-     "dongle sıfır kazançla geliyor.")
+p("Seri monitörde <font face='Mono'>Tepecan başlıyor</font> ve ardından "
+  "<font face='Mono'>kayıtlı ağ yok - kurulum noktası açılıyor</font> görmelisin.")
 
+h2("Ağa bağla — bilgisayara gerek yok")
+p("Wi-Fi bilgisi koda gömülü değil, NVS'e yazılıyor. Kart kayıtlı ağ bulamazsa "
+  "kendi erişim noktasını açıyor:")
+bullets([
+    "Telefondan <b>Tepecan-Kurulum</b> ağına bağlan (şifresiz).",
+    "Tarayıcıda <font face='Mono'>http://192.168.4.1</font> aç.",
+    "Wi-Fi adı, şifresi ve beyin sunucusunun adresini gir "
+    "(<font face='Mono'>http://sunucunun-IP-adresi:8000</font>).",
+    "Kaydet — kart yeniden başlayıp o ağa bağlanıyor.",
+])
+p("Kulüpten etkinliğe geçerken ağ değiştirmek için de aynı portal yeter; USB "
+  "yalnız ilk yüklemede lazım. Sonrasında prize takılı durduğu sürece çalışır.")
 
-h2("Tepecan")
-code("""
-mkdir -p ~/tepecan && cd ~/tepecan
-# tepecan.py, persona.txt, bilgiler.txt, requirements-pi.txt dosyalarını buraya koy
-
-pip install --break-system-packages -r requirements-pi.txt
-python3 tepecan.py
-""")
-
-p("\"Hey Tepecan\" de ya da sırt kapağındaki butona bas; kayıt sen susunca kendiliğinden "
-  "biter. Terminalde durumu ve konuşulan metni görürsün. Uyandırma kelimesi "
-  "modelini edinmek için <font face='Mono'>yazilim/maskot/UYANDIRMA.md</font> "
-  "dosyasına bak — model dosyası yoksa program yine çalışır, sadece buton tetikler.")
-
-h2("Açılışta otomatik başlasın")
-p("<font face='Mono'>/etc/systemd/system/tepecan.service</font> dosyasını oluştur:")
-code("""
-[Unit]
-Description=Tepecan sesli asistan
-After=network-online.target sound.target
-Wants=network-online.target
-
-[Service]
-Type=simple
-User=pi
-WorkingDirectory=/home/pi/tepecan
-Environment=TEPECAN_BRAIN=http://tepecan-beyin.local
-ExecStart=/usr/bin/python3 /home/pi/tepecan/tepecan.py
-Restart=always
-RestartSec=5
-
-[Install]
-WantedBy=multi-user.target
-""")
-code("""
-sudo systemctl enable --now tepecan
-sudo journalctl -u tepecan -f        # canlı günlük
-""")
+note("Uyandırma kelimesi varsayılan KAPALI geliyor: çalışması için ifadeye özel "
+     "eğitilmiş bir microWakeWord modeli gerekiyor ve o model depoda yok. "
+     "Şimdilik sırt kapağındaki buton tetikliyor. Açma yolu ve model eğitimi "
+     "<font face='Mono'>yazilim/esp32/README.md</font> içinde.")
 
 # ==========================================================================
 story.append(PageBreak())
 h1("7. Ayarlar")
+p("Maskot tarafındakiler <font face='Mono'>yazilim/esp32/main/tepecan.h</font> "
+  "içinde derleme sabitleri, sunucu tarafındakiler ortam değişkeni.")
 table(
-    ["Değişken", "Varsayılan", "Ne işe yarar"],
-    [["TEPECAN_BRAIN", "http://tepecan-beyin.local", "Beyin sunucusunun adresi"],
-     ["TEPECAN_MODEL", "qwen3:4b", "Ollama'da kullanılacak model"],
-     ["TEPECAN_LLM_BACKEND", "ollama", "ollama veya claude"],
-     ["TEPECAN_BUTTON_PIN", "17", "Butonun bağlı olduğu GPIO"],
-     ["TEPECAN_WAKE_MODEL", "~/tepecan/hey_tepecan.onnx", "Uyandırma modeli; yoksa sadece buton"],
-     ["TEPECAN_WAKE_THRESHOLD", "0.5", "Uyandırma güven eşiği (yükselt = az yanlış tetikleme)"],
-     ["TEPECAN_WAKE_HITS", "2", "Ardışık kaç blok eşiği aşmalı (gürültüde 3 yap)"],
+    ["Ayar", "Varsayılan", "Ne işe yarar"],
+    [["PIN_MIC_SCK / WS / SD", "4 / 5 / 6", "Mikrofonun I2S pinleri"],
+     ["PIN_SPK_BCLK / LRC / DIN", "15 / 16 / 17", "Amfinin I2S pinleri"],
+     ["PIN_BUTON", "18", "Butonun bağlı olduğu GPIO"],
+     ["SESSIZLIK_MS", "800", "Bu kadar sessizlikten sonra kayıt biter"],
+     ["EN_UZUN_KAYIT_SN", "10", "Kayıt tavanı"],
+     ["UYANDIRMA_ETKIN", "0", "1 yapınca uyandırma kelimesi derlenir"],
+     ["WAKE_ESIK", "0.85", "Uyandırma güven eşiği (yükselt = az yanlış tetik)"],
+     ["BEYIN_VARSAYILAN", "tepecan-beyin.local:8000", "Kurulum sayfasından değişir"],
+     ["TEPECAN_MODEL", "qwen3:4b", "Sunucuda: Ollama modeli"],
      ["STT_MODEL", "small", "Sunucuda: whisper boyutu (small / medium)"],
      ["STT_DEVICE", "cpu", "Sunucuda: cpu veya cuda"],
-     ["PIPER_MODEL", "~/piper/tr_TR-dfki-medium.onnx", "Sunucuda: Türkçe ses modeli"]],
-    [42 * mm, 46 * mm, 68 * mm], mono_cols=(0, 1))
+     ["PIPER_MODEL", "~/piper/tr_TR-dfki-medium.onnx", "Sunucuda: Türkçe ses"]],
+    [46 * mm, 42 * mm, 68 * mm], mono_cols=(0, 1))
 
-p("Stant gününde daha kaliteli cevap istersen tek satır:")
-code("TEPECAN_LLM_BACKEND=claude ANTHROPIC_API_KEY=... python3 tepecan.py")
-note("Claude arka ucu <font face='Mono'>claude-opus-5</font> kullanır, kişilik promptunu "
-     "önbelleğe alır ve sohbet için düşük efor ayarıyla çalışır. Soru başına maliyet "
-     "kabaca 0,25 TL. Bu yolu asıl arka uç yapacaksan sunucu taraflı yedek model "
-     "(fallbacks) ayarını da eklemek gerekir; şu hâliyle eklenmedi.")
+note("Mikrofon sesi kısık ya da bozuk gelirse "
+     "<font face='Mono'>yazilim/esp32/main/ses.c</font> içindeki kazanç "
+     "kaydırmasına (<font face='Mono'>&gt;&gt; 11</font>) ve "
+     "<font face='Mono'>MIC_KANAL_SOL</font> ayarına bak; donanımda "
+     "denenmemiş iki nokta bunlar.")
 
 h1("8. Küçük modelden iyi cevap almanın yolu")
 p("Model 4 milyar parametreli. Ondan bilgiyi <i>bilmesini</i> değil, verdiğimiz "
@@ -645,21 +612,31 @@ h2("yazilim/sunucu/beyin.py — beyin sunucusu (ses↔metin)")
 source("yazilim/sunucu/beyin.py")
 
 story.append(PageBreak())
-h2("yazilim/maskot/tepecan.py — maskotun içindeki program")
-source("yazilim/maskot/tepecan.py")
+h2("yazilim/esp32/main/tepecan.h — ayarlar ve pinler")
+source("yazilim/esp32/main/tepecan.h")
 
 story.append(PageBreak())
-h2("yazilim/maskot/persona.txt — kişilik")
-source("yazilim/maskot/persona.txt")
+h2("yazilim/esp32/main/main.c — akış")
+source("yazilim/esp32/main/main.c")
 
-h2("yazilim/maskot/UYANDIRMA.md — uyandırma kelimesi kurulumu")
-source("yazilim/maskot/UYANDIRMA.md")
+story.append(PageBreak())
+h2("yazilim/esp32/main/ses.c — I2S mikrofon ve hoparlör")
+source("yazilim/esp32/main/ses.c")
 
-h2("yazilim/maskot/bilgiler.txt — doldurulacak bilgi dosyası")
-source("yazilim/maskot/bilgiler.txt")
+story.append(PageBreak())
+h2("yazilim/esp32/main/ag.c — Wi-Fi ve beyin sunucusu istemcisi")
+source("yazilim/esp32/main/ag.c")
 
-h2("yazilim/maskot/requirements.txt")
-source("yazilim/maskot/requirements.txt")
+story.append(PageBreak())
+h2("yazilim/esp32/main/portal.c — ilk kurulum sayfası")
+source("yazilim/esp32/main/portal.c")
+
+story.append(PageBreak())
+h2("yazilim/sunucu/persona.txt — kişilik")
+source("yazilim/sunucu/persona.txt")
+
+h2("yazilim/sunucu/bilgiler.txt — doldurulacak bilgi dosyası")
+source("yazilim/sunucu/bilgiler.txt")
 
 h2("yazilim/sunucu/requirements.txt")
 source("yazilim/sunucu/requirements.txt")

@@ -35,6 +35,22 @@
 #define SESSIZLIK_MS   800      /* bu kadar sessizlikten sonra kayıt biter   */
 
 /* ------------------------------------------------------------- uyandırma */
+/* Uyandırma kelimesi varsayılan olarak KAPALI. Açmak için:
+ *   1. Burayı 1 yap.
+ *   2. main/idf_component.yml içindeki üç bağımlılığın yorumunu kaldır.
+ *   3. Eğitilmiş modeli "model" bölmesine yükle (bkz. README).
+ *
+ * Kapalı geliyor çünkü model dosyası olmadan zaten çalışmıyor, ve açıkken
+ * derleme kayıt sunucusundan üç bileşen indirmeye çalışıyor. Kapalıyken
+ * proje kutudan çıktığı gibi derleniyor; buton tetikleyici olarak yeterli.
+ *
+ * DİKKAT: uyandirma.cc donanımda denenmedi. microWakeWord'ün beklediği
+ * öznitelik çıkarıcı (eski "microfrontend" API'si) güncel esp-tflite-micro
+ * sürümlerinde yok, ayrı bir bileşen olarak geliyor - açtığında derleme
+ * hatası alırsan ilk bakılacak yer orası.
+ */
+#define UYANDIRMA_ETKIN 0
+
 /* microWakeWord modeli SPIFFS'te. Dosya yoksa program çalışır, yalnız
  * buton tetikler - uyandırma kelimesi sessizce devre dışı kalır. */
 #define WAKE_MODEL_YOLU  "/model/hey_tepecan.tflite"

@@ -350,9 +350,13 @@ SPK_FIT = 1.0                   # mm, bileziğin hoparlöre bıraktığı boşlu
 SPK_RING = 2.4                  # mm, bilezik et kalınlığı
 
 # Kart montajı iki kademeli. Gövdede yalnız GENEL AMAÇLI dört kule var;
-# kartın kendi delik deseni, ayrı basılan bir adaptör plakasının üstünde.
-# Böylece kart değişirse 240 mm'lik gövde değil, 20 dakikalık plaka yeniden
-# basılıyor - gövde baskısı hangi kartın bulunacağına bağlı olmaktan çıkıyor.
+# karta özel her şey ayrı basılan bir tepside. Böylece kart değişirse
+# 230 mm'lik gövde değil, 20 dakikalık tepsi yeniden basılıyor.
+#
+# ESP32-S3-DevKitC-1'de montaj deliği YOK (ölçüldü: 28 x 64 mm, delik yok).
+# Bu yüzden tepsi kartı vidalamıyor, kelepçeyle bağlıyor: iki sıra yuva
+# kartın altından geçiyor, kart bağ ile tepsiye sıkıştırılıyor. Vidalı bir
+# kart gelirse BOARD_HOLE_X/Y'yi doldurup standoff'lar geri gelir.
 # 41.0'de kartın alt kenarı alt vida bossunun z aralığına (49.8-68.5 mm)
 # giriyordu ve kart için yalnız 41.7 mm derinlik kalıyordu - bu da Pi Zero
 # formatını şart koşuyordu. 43.0'da kart bossun tepesinin üstünde kalıyor,
@@ -368,9 +372,11 @@ PLATE_EDGE = 4.0                # mm, en dış delikten plaka kenarına kalan et
 # görünüyor ama FDM delikleri 0.2-0.4 mm dar basıyor - geçmiyordu. 3.6 mm,
 # bağın yuvadan iki kez geçmesine de izin veriyor.
 PLATE_TIE = (10.0, 3.6)         # mm, kelepçe yuvası (uzunluk x genişlik)
-# Plakadaki kart deseni. Pi Zero ailesi 58 x 23 mm; muadil kart alınırsa
-# yalnız bu iki sayı değişip tepecan_plaka.stl yeniden üretiliyor.
-BOARD_HOLE_X, BOARD_HOLE_Y = 58.0 / 2, 23.0 / 2     # mm; configure() birime çevirir
+# Tepsideki kart deseni. 0 = kartın vida deliği yok, kelepçeyle bağlanıyor
+# (ESP32-S3-DevKitC-1 böyle). Vidalı bir kart için yarı ölçüleri gir.
+BOARD_HOLE_X, BOARD_HOLE_Y = 0.0, 0.0               # mm; configure() birime çevirir
+# Kartın dış ölçüsü - tepsi buna ve kelepçe yuvalarına göre boyutlanıyor.
+BOARD_W, BOARD_D = 64.0, 28.0                       # mm, ESP32-S3-DevKitC-1
 # Derin kartlar için: plakanın merkezi gövde kulelerinde y=+2.3'te sabit, ama
 # kartın kendisi plakanın üstünde kaydırılabiliyor. Eksi değer kartı geriye alır.
 # 50 x 55 mm bir kart -10 mm ile geçiyor. dogrula.py pencereyi ölçüp yazdırıyor.
@@ -426,7 +432,7 @@ def configure(height_mm=DEFAULT_HEIGHT):
     global SCREW_PILOT, SCREW_FREE, SCREW_HEAD, GROOVE
     global POST_R, POST_PILOT, POST_DEPTH, BOSS_DEPTH, BOARD_HOLE_X, BOARD_HOLE_Y
     global PLATE_HOLE_X, PLATE_HOLE_Y, PLATE_T, PLATE_STAND, PLATE_R, BOARD_OFFSET_Y
-    global PLATE_EDGE, PLATE_TIE, CARD_W, CARD_T, CARD_H
+    global PLATE_EDGE, PLATE_TIE, CARD_W, CARD_T, CARD_H, BOARD_W, BOARD_D
     global SPK_W, SPK_H, SPK_FIT, SPK_RING
     global BTN_HOLE, BTN_POCKET, BTN_WALL, BTN_GUIDE, BTN_DEPTH
     global BTN_CAP_R, BTN_CAP_T, BTN_FIT
@@ -447,8 +453,10 @@ def configure(height_mm=DEFAULT_HEIGHT):
     SPK_H = SPK_BODY_H / SCALE
     SPK_FIT = 1.0 / SCALE
     SPK_RING = 2.4 / SCALE
-    BOARD_HOLE_X = 58.0 / 2 / SCALE
-    BOARD_HOLE_Y = 23.0 / 2 / SCALE
+    BOARD_HOLE_X = 0.0 / SCALE
+    BOARD_HOLE_Y = 0.0 / SCALE
+    BOARD_W = 64.0 / SCALE
+    BOARD_D = 28.0 / SCALE
     PLATE_HOLE_X = 44.0 / 2 / SCALE
     PLATE_HOLE_Y = 28.0 / 2 / SCALE
     BOARD_OFFSET_Y = 0.0 / SCALE
@@ -768,56 +776,68 @@ def board_posts():
 
 
 def plate_size():
-    """Plakanın dış ölçüsü: en dış deliği hangisiyse ona göre türetiliyor.
-
-    Böylece Pi Zero deseni (58 x 23) de, daha kare bir muadil (45 x 50 gibi)
-    de aynı kodla, kendi ölçüsünde bir plaka üretiyor.
-    """
-    w = 2.0 * (max(BOARD_HOLE_X, PLATE_HOLE_X) + PLATE_EDGE)
-    # Plaka kartın üstünde merkezli; kaydırma gövde deliklerinde karşılanıyor.
-    # Tersini yapmak (kartı kaydırmak) plakayı iki kat büyütüp kapak
-    # açıklığından geçemez hale getiriyordu.
-    d = 2.0 * (max(BOARD_HOLE_Y, PLATE_HOLE_Y + abs(BOARD_OFFSET_Y)) + PLATE_EDGE)
+    """Tepsinin dış ölçüsü: kartı ve gövde kulelerini kapsayacak kadar."""
+    w = 2.0 * (max(BOARD_W / 2.0, BOARD_HOLE_X, PLATE_HOLE_X) + PLATE_EDGE)
+    d = 2.0 * (max(BOARD_D / 2.0, BOARD_HOLE_Y,
+                   PLATE_HOLE_Y + abs(BOARD_OFFSET_Y)) + PLATE_EDGE)
     return w, d
 
 
 def build_plate():
-    """Kart adaptör plakası - ayrı basılır, kartın delik desenini o taşır.
+    """Kart tepsisi - ayrı basılır, karta özel her şeyi o taşır.
 
-    Altında gövde kulelerine oturan dört serbest delik, üstünde kartın kendi
-    deseninde dört standoff var. Kart değişince yalnız BOARD_HOLE_X/Y değişip
-    bu parça yeniden basılıyor; gövdeye dokunulmuyor.
+    Kart vidalanmıyor, KELEPÇEYLE bağlanıyor: ESP32-S3-DevKitC-1'de montaj
+    deliği yok. Kartın altından iki sıra yuva geçiyor, plastik bağ kartın
+    üstünden dolanıp tepsiye sıkıştırıyor. Vidalı bir kart gelirse
+    BOARD_HOLE_X/Y doldurulur ve standoff'lar geri gelir.
 
-    Dört köşedeki kelepçe yuvaları parçaya özel değil bilerek: USB ses kartı,
-    amfi modülü, kablo demeti - ne olursa plastik kelepçeyle bağlanıyor, her
-    modül için ayrı yuva modellemeye gerek kalmıyor.
+    Köşelerdeki yuvalar parçaya özel değil bilerek: amfi, mikrofon, kablo
+    demeti - ne olursa aynı şekilde bağlanıyor.
 
     Yatık basılır, destek istemez; z=0 düzleminde duruyor.
     """
     w, d = plate_size()
-    # rbox köşeleri üç eksende birden yuvarlıyor; plakanın altı düz kalmalı,
+    # rbox köşeleri üç eksende birden yuvarlıyor; tepsinin altı düz kalmalı,
     # o yüzden yalnız X/Y kesitinde yuvarlak bir prizma kullanıyoruz.
     plate = rot(xz_prism(w, d, PLATE_R, 0.0, PLATE_T), 90, (1, 0, 0))
 
     stands, pilots, cuts = [], [], []
+    tl, tw = PLATE_TIE
+
+    if BOARD_HOLE_X > 0.0 and BOARD_HOLE_Y > 0.0:
+        # Vidalı kart: kendi deseninde standoff'lar
+        for sx in (-1, 1):
+            for sy in (-1, 1):
+                bx, by = sx * BOARD_HOLE_X, sy * BOARD_HOLE_Y
+                stands.append(creation.cylinder(
+                    radius=POST_R,
+                    segment=[(bx, by, PLATE_T - 0.4), (bx, by, PLATE_T + PLATE_STAND)],
+                    sections=40))
+                pilots.append(creation.cylinder(
+                    radius=POST_PILOT,
+                    segment=[(bx, by, PLATE_T + PLATE_STAND - POST_DEPTH),
+                             (bx, by, PLATE_T + PLATE_STAND + 1)], sections=24))
+    else:
+        # Deliksiz kart: iki sıra kelepçe yuvası, kartın kısa kenarlarına
+        # yakın. Bağ kartın üstünden dolanıp tepsiye sıkıştırıyor.
+        for sx in (-1, 1):
+            x = sx * BOARD_W / 4.0
+            for sy in (-1, 1):
+                y = sy * (BOARD_D / 2.0 + tw)
+                cuts.append(creation.box(
+                    extents=(tl, tw, PLATE_T + 2),
+                    transform=trimesh.transformations.translation_matrix(
+                        (x, y, PLATE_T / 2.0))))
+
+    # gövde kulelerine oturan serbest delikler
     for sx in (-1, 1):
         for sy in (-1, 1):
-            bx, by = sx * BOARD_HOLE_X, sy * BOARD_HOLE_Y
-            stands.append(creation.cylinder(
-                radius=POST_R,
-                segment=[(bx, by, PLATE_T - 0.4), (bx, by, PLATE_T + PLATE_STAND)],
-                sections=40))
-            pilots.append(creation.cylinder(
-                radius=POST_PILOT,
-                segment=[(bx, by, PLATE_T + PLATE_STAND - POST_DEPTH),
-                         (bx, by, PLATE_T + PLATE_STAND + 1)], sections=24))
             px, py = sx * PLATE_HOLE_X, -BOARD_OFFSET_Y + sy * PLATE_HOLE_Y
             cuts.append(creation.cylinder(
                 radius=POST_PILOT + LID_GAP,
                 segment=[(px, py, -1), (px, py, PLATE_T + 1)], sections=24))
 
-    # kelepçe yuvaları: her köşede, deliklerin dışında kalan ette
-    tl, tw = PLATE_TIE
+    # köşelerdeki genel amaçlı modül yuvaları
     for sx in (-1, 1):
         for sy in (-1, 1):
             x = sx * (w / 2.0 - PLATE_EDGE / 2.0 - tw / 2.0)
@@ -827,7 +847,8 @@ def build_plate():
                 transform=trimesh.transformations.translation_matrix(
                     (x, y, PLATE_T / 2.0))))
 
-    return diff(union(plate, *stands), *pilots, *cuts)
+    body = union(plate, *stands) if stands else plate
+    return diff(body, *pilots, *cuts) if (pilots or cuts) else body
 
 
 def card_clip():

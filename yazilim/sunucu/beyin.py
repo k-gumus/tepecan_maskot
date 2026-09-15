@@ -2,8 +2,8 @@
 """
 Tepecan beyin sunucusu — ses->metin ve metin->ses.
 
-Bu iki iş de maskotun içindeki Pi için ağır; buraya alındı. LLM ayrı bir
-servis (Ollama) olarak aynı makinede çalışır, Pi ona doğrudan bağlanır.
+Bu işler maskotun içindeki ESP32 için fazla ağır; buraya alındı. LLM ayrı
+bir servis (Ollama) olarak aynı makinede çalışır, sunucu ona bağlanır.
 
     uvicorn beyin:app --host 0.0.0.0 --port 8000
 
@@ -35,7 +35,7 @@ PIPER_BIN = os.getenv("PIPER_BIN", "piper")
 PIPER_MODEL = os.getenv("PIPER_MODEL",
                         os.path.expanduser("~/piper/tr_TR-dfki-medium.onnx"))
 
-BURASI = pathlib.Path(__file__).resolve().parent.parent / "maskot"
+BURASI = pathlib.Path(__file__).resolve().parent
 
 
 def _oku(ad, yedek=""):
