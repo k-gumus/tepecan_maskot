@@ -4,6 +4,23 @@
 Destek haritası: `dokuman/baski_destek_haritasi.png`
 (kırmızı = destek şart, sarı = sınırda, mavi = kendini taşır).
 
+## Hazır plakalar
+
+`govde/3mf/` altında her plaka için tek bir 3MF var. Bambu Studio'ya sürükle-bırak
+yeterli; parçalar 256 × 256'nın içine yerleştirilmiş, tablaya oturtulmuş ve gövde
+yüzü kapıya bakacak şekilde döndürülmüş durumda (seam'i `Rear` yapınca dikiş sırta,
+kapağın yanına düşüyor). Yerleşim kaymışsa "Auto arrange" bas.
+
+| dosya | içindekiler |
+|---|---|
+| `plaka1_tepecan_govde.3mf` | gövde |
+| `plaka2_kapak_plaka_buton.3mf` | kapak + kart plakası + buton |
+| `plaka3_tepesu.3mf` | tepesu (pembe) |
+
+Bunlar **yalnız geometri** taşıyor — içlerinde gömülü baskı profili ya da boyanmış
+destek yok. Aşağıdaki ayarları elle gir; bir kere girip profili kaydedersen üç plakada
+da kullanırsın.
+
 ## Plakalar
 
 | plaka | parça | ayak izi | yükseklik | tahmini |
