@@ -82,6 +82,30 @@ Nokta mesafesi 0.8, kalınlık **0.4** (varsayılan 0.3 biraz siliktir).
 Yan etki olarak işine yarayacak: çenenin altındaki destek izlerini fuzzy doku
 gizliyor.
 
+## Dilimleyicinin "boş katman" uyarısı
+
+İlk parça setinde Bambu şu uyarıyı veriyordu: *"X ile Y arasındaki boş katman
+için nesne yazdırılamıyor"* — ve uyardığı nesneyi plakadan düşürüyordu, bir kol
+hiç basılmadı.
+
+Sebep ağdaydı. Parçaları gövdeyle **kesiştirerek** ayırmıştım; iki katının
+yüzeyi omuzda birebir çakışınca boolean orada üst üste binmiş kabuklar
+bırakıyor. Dilimleyici aynı yerde iki kontur görünce ikisi birbirini götürüyor
+ve katman boşalıyor. Aynı şey boyun mili ile bacak pimlerinde de vardı: ikisi de
+kesim düzlemine tam teğet başlıyordu.
+
+Üç değişiklikle gitti:
+
+- Gövde artık **baştan kolsuz** kuruluyor, kollar da kendi başına. İkisi
+  arasında hiç boolean yok, omuz yüzeyi el değmemiş kalıyor.
+- Mil ve pimler kesim düzlemine teğetlenmiyor, ana parçanın 4 birim **içine**
+  gömülüyor.
+- `parcala.py` her parçayı yazmadan önce baştan sona 0.2 mm'de dilimliyor ve
+  her katmana tek bir duvarın sığdığını doğruluyor — dilimleyicinin yaptığı
+  denetimin aynısı. Bir katman bile geçmezse dosya yazılmıyor.
+
+Şu anki set 1634 katmanın hepsinden geçiyor.
+
 ## Yeniden üretmek
 
     cd govde && python3 parcala.py

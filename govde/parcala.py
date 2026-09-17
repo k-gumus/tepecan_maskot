@@ -31,6 +31,8 @@ SPIGOT_R = 6.5      # boyun geçmesi, boyun çubuğundan ince olmalı ki
 SPIGOT_H = 8.0      # kafanın altında oturacak düz bir bilezik kalsın
 PEG_H = 7.0         # bacak pimlerinin boyu
 PEG_BACK = 3.5      # pim yarıçapı = bacak yarıçapı - bu
+SINK = 4.0          # mil ve pimlerin ana parçanın içine gömüldüğü boy
+GAP_ARM = 0.25      # mm, kolun omuz yüzeyinden kaçışı (yapıştırıcı payı)
 
 
 def fit():
@@ -102,6 +104,50 @@ def lay_flat(mesh):
     return max((b for b in best if b[0] <= lowest * 1.15), key=lambda b: b[1])[2]
 
 
+def heal(mesh):
+    """Boolean çıktısını manifold3d'den bir kez daha geçir.
+
+    Yüzey silmiyoruz: sıfır alanlı üçgenler zararsız, onları atmak deliyor.
+    Dert olan, çakışan yüzeylerden kalan üst üste binmiş kabuklar; dilimleyici
+    aynı yerde iki kontur görünce ikisi birbirini götürüyor ve katman boşalıyor.
+    Tek nesneli birleşim manifold'a ağı yeniden ördürüyor.
+    """
+    try:
+        return trimesh.boolean.union([mesh.copy()], engine="manifold")
+    except ValueError:
+        return mesh
+
+
+def slice_check(name, m, layer=0.2, wall=0.21):
+    """Bambu'nun "boş katman" denetiminin aynısı: her katman basılabiliyor mu.
+
+    Dilimleyici bir katmanda hiçbir kontur bulamazsa ya da bulduğu kontura tek
+    bir duvar bile sığmıyorsa nesneyi plakadan düşürüyor. Dosyayı yazmadan önce
+    parçanın tüm yüksekliğini bu gözle tarıyoruz.
+    """
+    from shapely.ops import unary_union
+    z0, z1 = m.bounds[:, 2]
+    bad = []
+    z = z0 + layer / 2.0
+    while z < z1:
+        try:
+            sec = m.section(plane_origin=[0, 0, z], plane_normal=[0, 0, 1])
+            area = 0.0
+            if sec is not None:
+                polys = unary_union(sec.to_2D()[0].polygons_full)
+                area = 0.0 if polys.is_empty else polys.buffer(-wall).area
+        except Exception:
+            area = 0.0          # kontur geçerli bir çokgen kurmuyor
+        if area < 0.01:
+            bad.append(z)
+        z += layer
+    if bad:
+        print("   %s: %d katman basılamıyor  %s"
+              % (name, len(bad), " ".join("%.1f" % b for b in bad[:12])))
+        return False
+    return True
+
+
 def biggest(mesh, share=0.02):
     """Boolean'ların teğet yüzeylerde bıraktığı kabukları at."""
     parts = mesh.split(only_watertight=False)
@@ -114,8 +160,23 @@ def biggest(mesh, share=0.02):
     return kept[0] if len(kept) == 1 else trimesh.util.concatenate(kept)
 
 
+def figure_without_arms(with_text):
+    """build_outer'ın kolsuz hâli.
+
+    Gövdeyi kollarla kurup sonra kesip çıkarmak, kesim yüzeyini gövdenin kendi
+    yüzeyiyle birebir çakıştırıyor; boolean oradan üst üste binmiş kabuk
+    bırakıyor ve dilimleyici kesiti paramparça görüyor. Kol hiç eklenmezse
+    omuz yüzeyi el değmemiş kalıyor. Omuz rozeti de sol kola gidiyor.
+    """
+    figure = union(T.torso_solid(), T.legs_and_feet(), T.head_solid(), T.eyes(),
+                   T.head_details(), T.head_panel(), T.chest_panel(with_text),
+                   T.rivets())
+    return diff(figure, T.smile_cut(), T.head_grooves(), T.joint_grooves(),
+                T.torso_seams(), T.foot_detail())
+
+
 def build_parts(with_text=True):
-    figure = T.build_outer(with_text)
+    figure = figure_without_arms(with_text)
 
     posts, post_holes = T.board_posts()
     body = diff(figure, T.cavity_solid(), T.hatch_prism())
@@ -126,18 +187,15 @@ def build_parts(with_text=True):
     f = fit()
     out = {}
 
-    # --- kollar: gövde yüzeyiyle kesilir, aradan 0.25 mm yapıştırma payı ---
+    # --- kollar: gövdeye hiç dokunmadan, kendi başlarına ---
     for name, triple, side in (("kol_sol", T.ARM_LEFT, -1), ("kol_sag", T.ARM_RIGHT, +1)):
         env = arm_envelope(triple, side, with_text)
-        keep = diff(env, torso_hull(f))     # kolda kalan: yüzeyden f kadar dışarısı
-        drop = diff(env, torso_hull(0.0))   # gövdeden giden: yüzeye kadar
-        out[name] = biggest(inter(body, keep))
-        body = biggest(diff(body, drop))
+        out[name] = biggest(diff(env, torso_hull(GAP_ARM / T.SCALE)))
 
     # --- kafa: boyundan düz kesim, gövdede geçme mili ---
     head = biggest(inter(body, half_space(2, +1, NECK_Z)))
     body = biggest(inter(body, half_space(2, -1, NECK_Z)))
-    body = union(body, cyl(SPIGOT_R, NECK_Z, NECK_Z + SPIGOT_H))
+    body = union(body, cyl(SPIGOT_R, NECK_Z - SINK, NECK_Z + SPIGOT_H))
     head = diff(head, cyl(SPIGOT_R + f, NECK_Z - 1.0, NECK_Z + SPIGOT_H + f))
     out["kafa"] = biggest(head)
 
@@ -146,7 +204,7 @@ def build_parts(with_text=True):
     body = biggest(inter(body, half_space(2, +1, HIP_Z)))
     for s in (-1, 1):
         x, y, r = leg_axis(HIP_Z)
-        legs = union(legs, cyl(r - PEG_BACK, HIP_Z, HIP_Z + PEG_H, (s * x, y)))
+        legs = union(legs, cyl(r - PEG_BACK, HIP_Z - SINK, HIP_Z + PEG_H, (s * x, y)))
         body = diff(body, cyl(r - PEG_BACK + f, HIP_Z - 1.0, HIP_Z + PEG_H + f, (s * x, y)))
     out["bacaklar"] = biggest(legs)
     out["govde"] = biggest(body)
@@ -170,10 +228,9 @@ def main():
     for name, mesh in build_parts(with_text=not args.no_text).items():
         mesh.apply_scale(T.SCALE)
         mesh.apply_translation((0, 0, -mesh.bounds[0][2]))
-        mesh.vertices = mesh.vertices.astype(np.float32).astype(np.float64)
-        mesh.merge_vertices()
-        mesh = biggest(mesh)
-        trimesh.repair.fix_normals(mesh)
+        # STL float32 saklıyor: yuvarlamayı burada yap ki yuvarlamanın
+        # doğurduğu kılcal üçgenler dosyaya yazılmadan önce süpürülsün.
+        mesh = heal(biggest(mesh))
 
         path = os.path.join(args.outdir, "tepecan_" + name + ".stl")
         mesh.export(path)
@@ -182,6 +239,7 @@ def main():
         if not (check.is_watertight and check.is_winding_consistent
                 and len(check.split(only_watertight=False)) == 1 and check.volume > 0):
             raise SystemExit("%s temiz bir katı değil" % path)
+        slice_check(path, check)
         T.report(name, check)
 
 
