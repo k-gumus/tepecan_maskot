@@ -1,5 +1,11 @@
 # Bambu Lab P1S — baskı ayarları
 
+> **Tek parça baskı denendi ve dağıldı.** Kafa gövdeye Ø33 mm'lik bir boyunla
+> oturduğu için kürenin alt yarısı havada başlıyor, eller de öyle. Figür artık
+> 5 parça hâlinde basılıp yapıştırılıyor — bkz. **`parcali_baski.md`**.
+> Aşağıdaki kalite / mukavemet / filament / ilk katman ayarları aynen geçerli;
+> yalnız destek bölümünün yerini o dosyadaki tablo alıyor.
+
 Ölçüler `govde/stl/` içindeki dosyalardan okundu, tasarım birimi değil **basılacak mm**.
 Destek haritası: `dokuman/baski_destek_haritasi.png`
 (kırmızı = destek şart, sarı = sınırda, mavi = kendini taşır).
