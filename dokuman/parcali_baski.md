@@ -11,15 +11,30 @@ boyanmış destek gerekmiyor, sıradan otomatik destek yetiyor.
 
 ## Parçalar
 
-| parça | ölçü (mm) | filament | tabla teması |
-|---|---|---|---|
-| `tepecan_kafa` | 114 × 90 × 114 | ~95 g | 540 mm² (boyun bileziği) |
-| `tepecan_govde` | 92 × 77 × 98 | ~90 g | 2252 mm² (düz kalça kesiti) |
-| `tepecan_bacaklar` | 84 × 58 × 40 | ~38 g | 3375 mm² (iki bot tabanı) |
-| `tepecan_kol_sol` | 105 × 60 × 33 | ~18 g | destek taşıyor |
-| `tepecan_kol_sag` | 81 × 59 × 42 | ~16 g | destek taşıyor |
+| parça | ölçü (mm) | filament | tabla teması | destek |
+|---|---|---|---|---|
+| `tepecan_kafa` | 114 × 90 × 114 | ~95 g | 540 mm² | gerekli |
+| `tepecan_govde` | 92 × 77 × 98 | ~90 g | 2252 mm² | az |
+| `tepecan_bacaklar` | 84 × 58 × 40 | ~38 g | 3375 mm² | az |
+| `tepecan_kol_sag_arka` | 37 × 60 × 26 | ~9 g | 1091 mm² | **yok** |
+| `tepecan_kol_sag_on` | 46 × 75 × 32 | ~10 g | 1100 mm² | **yok** |
+| `tepecan_kol_sol_arka` | 34 × 86 × 23 | ~11 g | 1499 mm² | **yok** |
+| `tepecan_kol_sol_on` | 39 × 100 × 28 | ~11 g | 1495 mm² | **yok** |
+| `tepecan_lid` (arka kapak) | 72 × 59 × 30 | ~21 g | 89 mm² | yok, **8 mm kenar şart** |
 
-Toplam ~257 g, desteklerle ~300 g. Tek makara fazlasıyla yeter.
+### Kollar neden ikiye bölündü
+
+Bütün hâlde bir kol tablaya **7 mm²** ile değiyordu. Yuvarlak bir uzuv nereye
+yatırılırsa yatırılsın bir çizgi üstünde duruyor: parça tamamen desteğin
+üstünde yüzüyor, alt yüzeyi de destek iziyle kaplanıyor.
+
+Kol kendi düzleminden ikiye ayrılınca her yarım düz yüzüne yatıyor. Ölçülen
+sonuç: tabla teması **1091-1499 mm²** (150-200 katı), askıda kalan yüzey
+neredeyse sıfır. Malzemenin tamamı düz yüzden yukarı doğru büyüyor, parmaklar
+dahil hiçbir şey havada başlamıyor — yani **bu dört parça desteksiz basılıyor.**
+
+Kesim düzlemi elin açıldığı düzleme paralel geçiyor, yani parmakların arasından
+değil etrafından dolaşıyor: parmaklar tek parça hâlinde ön yarımda kalıyor.
 
 ## Birleşme yerleri
 
@@ -30,6 +45,10 @@ Toplam ~257 g, desteklerle ~300 g. Tek makara fazlasıyla yeter.
 - **Kollar** — düzlemle değil, **gövde küresinin yüzeyiyle** kesildi. Kesit eyer
   biçiminde: omuza tek bir şekilde oturuyor, pime gerek yok. Aralarında 0.25 mm
   yapıştırıcı payı bırakıldı.
+- **Kol yarımları** — iki yarım birbirinin tam tamamlayıcısı, aralarında boşluk
+  yok. Hizalama için pim koymadım: iki yarımın dış hattı birebir aynı, kenarları
+  denkleştirince yerine oturuyor. Önce yarımları birleştir, kol kuruduktan sonra
+  omuza yapıştır.
 
 Yapıştırmadan önce hepsini kuru kuruya tak, oturuşu gör. Sonra jel kıvamında
 siyanoakrilat (japon yapıştırıcısı) ya da iki bileşenli epoksi. İnce akıcı CA
@@ -43,8 +62,9 @@ Sıra: bacaklar → gövde, kollar → omuz, kafa en son.
 
 | dosya | içinde | tahmini |
 |---|---|---|
-| `parca_plaka1_govde_bacak_kollar.3mf` | gövde, bacaklar, iki kol | ~162 g · 12-16 sa |
+| `parca_plaka1_govde_bacaklar.3mf` | gövde + bacaklar | ~128 g · 9-12 sa |
 | `parca_plaka2_kafa.3mf` | kafa | ~95 g · 7-9 sa |
+| `parca_plaka3_kapak_kollar.3mf` | arka kapak + dört kol yarımı | ~62 g · 4-6 sa |
 
 Riskli olan tek parça kafa, o yüzden kendi plakasında. Diğer dördü düşük riskli,
 birlikte basılıyor; biri bozulursa yalnız onu tekrar basarsın.

@@ -33,6 +33,7 @@ PEG_H = 7.0         # bacak pimlerinin boyu
 PEG_BACK = 3.5      # pim yarıçapı = bacak yarıçapı - bu
 SINK = 4.0          # mil ve pimlerin ana parçanın içine gömüldüğü boy
 GAP_ARM = 0.25      # mm, kolun omuz yüzeyinden kaçışı (yapıştırıcı payı)
+ARM_SPLIT = 0.45    # kolu ikiye bölen düzlemin y aralığındaki yeri
 
 
 def fit():
@@ -188,9 +189,20 @@ def build_parts(with_text=True):
     out = {}
 
     # --- kollar: gövdeye hiç dokunmadan, kendi başlarına ---
+    #
+    # Bütün hâlde kol tablaya 7 mm2 ile değiyordu: yuvarlak bir uzuv nereye
+    # yatırılırsa yatırılsın bir çizgi üstünde duruyor ve tamamen desteğin
+    # üstünde yüzüyor. Kendi düzleminden ikiye ayrılınca her yarım düz yüzüne
+    # yatıyor; temas 1100-1500 mm2'ye çıkıyor ve askıda yüzey neredeyse sıfır.
+    # Parmaklar da yarım silindir olarak tablada uzanıyor, havada değil.
     for name, triple, side in (("kol_sol", T.ARM_LEFT, -1), ("kol_sag", T.ARM_RIGHT, +1)):
         env = arm_envelope(triple, side, with_text)
-        out[name] = biggest(diff(env, torso_hull(GAP_ARM / T.SCALE)))
+        arm = biggest(diff(env, torso_hull(GAP_ARM / T.SCALE)))
+        y0, y1 = arm.bounds[:, 1]
+        cut = y0 + (y1 - y0) * ARM_SPLIT
+        # kesik yüz aşağı baksın diye her yarım X'te ters yöne çevriliyor
+        out[name + "_arka"] = rot(biggest(inter(arm, half_space(1, -1, cut))), -90, (1, 0, 0))
+        out[name + "_on"] = rot(biggest(inter(arm, half_space(1, +1, cut))), +90, (1, 0, 0))
 
     # --- kafa: boyundan düz kesim, gövdede geçme mili ---
     head = biggest(inter(body, half_space(2, +1, NECK_Z)))
@@ -209,8 +221,6 @@ def build_parts(with_text=True):
     out["bacaklar"] = biggest(legs)
     out["govde"] = biggest(body)
 
-    for name in ("kol_sol", "kol_sag"):
-        out[name] = lay_flat(out[name])
     return out
 
 
