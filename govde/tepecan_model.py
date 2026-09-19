@@ -25,6 +25,8 @@ import os
 
 import numpy as np
 import trimesh
+
+import agtemiz
 from trimesh import creation
 
 ENGINE = "manifold"
@@ -308,7 +310,10 @@ HIP_R = (27.0, 23.0, 15.0)
 
 HEAD_C = (0.0, 0.0, 110.0)
 HEAD_R = (31.0, 29.0, 28.0)
-ARM_LEFT = ((-29.0, 0.0, 68.0), (-36.0, 0.0, 52.0), (-33.0, 6.0, 36.0))
+ARM_LEFT = ((-29.0, 0.0, 68.0), (-36.0, 0.0, 52.0), (-34.0, 4.0, 44.0))
+# Bilek eskiden z=36 idi: el bilekten 28 birim uzadigi icin parmak uclari
+# botlarin hizasina, yerden 15 mm yukariya kadar iniyordu. z=44 ile uclar
+# 29 mm ye cikiyor, el bacagi siyiriyor; el geometrisi degismiyor.
 ARM_RIGHT = ((29.0, 0.0, 68.0), (38.0, 2.0, 56.0), (31.0, 11.0, 78.0))
 
 EYE_DIR = (0.44, 0.90, 0.06)    # direction from the head centre, mirrored in x
@@ -1112,8 +1117,9 @@ def main():
         # STL stores float32: round to it here, so the slivers that rounding
         # can create are cleaned up before the file is written, not after.
         mesh.vertices = mesh.vertices.astype(np.float32).astype(np.float64)
-        mesh.merge_vertices()
-        mesh = drop_slivers(mesh)
+        mesh = drop_slivers(agtemiz.temizle(mesh))
+        mesh.vertices = mesh.vertices.astype(np.float32).astype(np.float64)
+        mesh = agtemiz.snap(mesh)
         trimesh.repair.fix_normals(mesh)
 
         path = os.path.join(args.outdir, name + ".stl")
@@ -1123,6 +1129,12 @@ def main():
         if not (check.is_watertight and check.is_winding_consistent
                 and len(check.split(only_watertight=False)) == 1 and check.volume > 0):
             raise SystemExit("%s is not a clean printable solid" % path)
+        # Dilimleyici konturu kapatabiliyor mu: kapatamadigi katmani atiyor ve
+        # nesneyi plakadan dusuruyor, yani bu denetim gecmeden dosya ise yaramaz.
+        bad = agtemiz.open_contour_layers(check)
+        if bad:
+            raise SystemExit("%s: %d katmanda kontur kapanmiyor, ilki z=%.2f"
+                             % (path, len(bad), bad[0]))
         report(name, check)
 
     # Plaka mutlak mm, kapak açıklığı ise figürle birlikte küçülüyor: küçük

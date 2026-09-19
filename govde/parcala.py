@@ -21,6 +21,7 @@ import os
 import numpy as np
 import trimesh
 
+import agtemiz
 import tepecan_model as T
 from tepecan_model import union, diff, inter, rod, ell, half_space, rot
 
@@ -130,7 +131,8 @@ def slice_check(name, m, layer=0.2, wall=0.21):
     z0, z1 = m.bounds[:, 2]
     bad = []
     z = z0 + layer / 2.0
-    while z < z1:
+    # Tepedeki yarım katman dilimlenmiyor zaten; onu kusur saymıyoruz.
+    while z < z1 - layer / 2.0:
         try:
             sec = m.section(plane_origin=[0, 0, z], plane_normal=[0, 0, 1])
             area = 0.0
@@ -240,7 +242,10 @@ def main():
         mesh.apply_translation((0, 0, -mesh.bounds[0][2]))
         # STL float32 saklıyor: yuvarlamayı burada yap ki yuvarlamanın
         # doğurduğu kılcal üçgenler dosyaya yazılmadan önce süpürülsün.
-        mesh = heal(biggest(mesh))
+        mesh = agtemiz.temizle(biggest(heal(mesh)))
+        mesh.vertices = mesh.vertices.astype(np.float32).astype(np.float64)
+        mesh = agtemiz.snap(mesh)
+        trimesh.repair.fix_normals(mesh)
 
         path = os.path.join(args.outdir, "tepecan_" + name + ".stl")
         mesh.export(path)
@@ -249,6 +254,10 @@ def main():
         if not (check.is_watertight and check.is_winding_consistent
                 and len(check.split(only_watertight=False)) == 1 and check.volume > 0):
             raise SystemExit("%s temiz bir katı değil" % path)
+        bad = agtemiz.open_contour_layers(check)
+        if bad:
+            raise SystemExit("%s: %d katmanda kontur kapanmıyor, ilki z=%.2f"
+                             % (path, len(bad), bad[0]))
         slice_check(path, check)
         T.report(name, check)
 
