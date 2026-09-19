@@ -902,8 +902,6 @@ def hatch_prism(shrink=0.0, y0=-60.0, y1=8.0):
 
 def ledge():
     """Rim inside the shell that the cover rests against."""
-    band = diff(cavity_solid(),
-                ell(tuple(r - LEDGE_T for r in CAV_R), TORSO_C))
     # Prizmalar y'de sonuna kadar uzanıyor, arka yarıyı y=0 düzlemi ayırıyor.
     # Uçları şeridin içinde bitirmek teğet kesişim ve manifold olmayan kenar
     # bırakıyordu; y=0'da şerit düzleme dik geçtiği için orada sorun çıkmıyor.
@@ -911,7 +909,17 @@ def ledge():
     inner = xz_prism(HATCH_W - 2 * LEDGE_W, HATCH_H - 2 * LEDGE_W, 4.0, -70, 70)
     outer.apply_translation((0, 0, HATCH_Z))
     inner.apply_translation((0, 0, HATCH_Z))
-    return inter(band, diff(outer, inner), half_space(1, -1, 0.0))
+
+    # Bileziği tam kavite yüzeyinde bitirmek, dış yüzünü gövdenin iç yüzüyle
+    # birebir çakıştırıyordu: birleşim çakışan yüzeyde üst üste binmiş kabuk
+    # bırakıyor, dilimleyici de kesiti kapatamıyordu (ölçüldü: bu adım tek
+    # başına bozuk katman sayısını 1'den 69'a çıkarıyordu, oysa bileziğin
+    # kendisi tek başına tertemiz). Kaviteyi büyütüp kesince bilezik duvarın
+    # içine giriyor, birleşim gerçek bir hacim kesişmesi oluyor. Aynı çözüm
+    # speaker_mount()'ta da var.
+    buried = ell(tuple(r + 1.2 for r in CAV_R), TORSO_C)
+    region = inter(buried, diff(outer, inner), half_space(1, -1, 0.0))
+    return diff(region, ell(tuple(r - LEDGE_T for r in CAV_R), TORSO_C))
 
 
 def bosses():
@@ -920,12 +928,18 @@ def bosses():
     Eskiden kaviteyi baştan başa geçiyorlardı; alt boss tam kartın oturduğu
     hacmi dolduruyordu. M3 vidaya kapak eti + 12 mm diş fazlasıyla yetiyor.
     """
+    # Silindiri kavitenin tam kendisiyle kesmek, bossun dış yüzünü gövdenin iç
+    # yüzüyle birebir çakıştırıyordu; boolean çakışan yüzeyde üst üste binmiş
+    # kabuk bırakıp ağı manifold olmaktan çıkarıyordu. Birazcık büyütülmüş bir
+    # kavite ile kesince boss duvarın içine giriyor, yani birleşim gerçek bir
+    # hacim kesişmesi oluyor ve çakışan yüzey kalmıyor.
+    clip = ell(tuple(r + 1.2 for r in CAV_R), TORSO_C)
     parts = []
     for z in BOSS_Z:
         cyl = creation.cylinder(radius=BOSS_R,
                                 segment=[(0, cavity_back_y(z) + BOSS_DEPTH, z), (0, -60, z)],
                                 sections=48)
-        parts.append(inter(cyl, cavity_solid()))
+        parts.append(inter(cyl, clip))
     return union(*parts)
 
 

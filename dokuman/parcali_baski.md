@@ -104,6 +104,32 @@ gizliyor.
 
 ## Dilimleyicinin "boş katman" uyarısı
 
+Kusurun kaynağı tek bir kalıp çıktı: **bir parçayı kavitenin tam yüzeyinde
+bitirmek.** Kapak bileziği ve vida bossları böyle kuruluyordu, dolayısıyla dış
+yüzleri gövdenin iç yüzüyle birebir çakışıyordu; boolean çakışan yüzeyde üst
+üste binmiş kabuk bırakıyor, dilimleyici de kesiti kapatamıyordu. Ölçüldü:
+bilezik eklenince bozuk katman 1'den 69'a fırlıyor, bosslar eklenince ağ
+watertight olmaktan çıkıyordu. İkisi de artık duvarın 1.2 birim içine
+gömülüyor -- `speaker_mount()` zaten bunu yapıyordu.
+
+Denetimin eşiğini bulmak üç deneme aldı ve ilk ikisi yanlıştı. "Hiç kopuk
+olmasın" ölçütü sorunsuz dilimlenen ağları da suçluyor: libslic3r serbest
+uçları `slice_closing_radius` (0.049 mm) kadar mesafede dikiyor ve kapaktaki
+kopuklar 1e-7 mm. Alan kaybı ölçütü ters yöne kaçıyor: 436 parçalık bir
+konturdaki tek kıl kopuğu yüzünden tüm halkayı atıp katmanı %100 kayıp
+sayıyor. Şimdiki ölçüt doğrudan boşluğun büyüklüğünü o 0.049 mm'ye karşı
+ölçüyor ve küre, kutu, silindir, iç içe delikli halkada sıfır yanlış alarm
+veriyor.
+
+Tarama yarım katman adımıyla yapılıyor: parça plakaya yerleştirilince dilim
+düzlemleri kayabiliyor ve tek fazda bir kusur örnekleme noktalarının arasına
+düşmüştü. `plakalar.py` de her nesneyi dilimleneceği konumda denetliyor,
+gerekirse orada temizliyor ve 3MF'i yazdıktan sonra dosyadan geri okuyup
+doğruluyor.
+
+### Önceki teşhis
+
+
 İlk parça setinde Bambu şu uyarıyı veriyordu: *"X ile Y arasındaki boş katman
 için nesne yazdırılamıyor"* — ve uyardığı nesneyi plakadan düşürüyordu, bir kol
 hiç basılmadı.

@@ -191,8 +191,14 @@ def gap_layers(mesh, layer=0.2, closing=CLOSING_RADIUS):
 
 
 def open_contour_layers(mesh, layer=0.2):
-    """Üretim betiklerinin geçidi: dikilemeyecek kopukluğu olan katmanlar."""
-    return gap_layers(mesh, layer)
+    """Üretim betiklerinin geçidi: dikilemeyecek kopukluğu olan katmanlar.
+
+    Yarım katman adımıyla tarıyoruz. Parça plakaya yerleştirilince dilim
+    düzlemleri yarım katman kayabiliyor; tek fazda tarayınca kusur örnekleme
+    noktalarının arasına düşüp gözden kaçabiliyordu (bir kol yarımında tam
+    olarak bu oldu: kendi başına temiz, plakadaki konumunda bir katman bozuk).
+    """
+    return gap_layers(mesh, layer / 2.0)
 
 
 def snap(mesh, digits=4):
