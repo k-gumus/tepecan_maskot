@@ -25,6 +25,8 @@ import os
 
 import numpy as np
 import trimesh
+
+import agtemiz
 from trimesh import creation
 
 ENGINE = "manifold"
@@ -308,7 +310,10 @@ HIP_R = (27.0, 23.0, 15.0)
 
 HEAD_C = (0.0, 0.0, 110.0)
 HEAD_R = (31.0, 29.0, 28.0)
-ARM_LEFT = ((-29.0, 0.0, 68.0), (-36.0, 0.0, 52.0), (-33.0, 6.0, 36.0))
+ARM_LEFT = ((-29.0, 0.0, 68.0), (-36.0, 0.0, 52.0), (-34.0, 4.0, 44.0))
+# Bilek eskiden z=36 idi: el bilekten 28 birim uzadigi icin parmak uclari
+# botlarin hizasina, yerden 15 mm yukariya kadar iniyordu. z=44 ile uclar
+# 29 mm ye cikiyor, el bacagi siyiriyor; el geometrisi degismiyor.
 ARM_RIGHT = ((29.0, 0.0, 68.0), (38.0, 2.0, 56.0), (31.0, 11.0, 78.0))
 
 EYE_DIR = (0.44, 0.90, 0.06)    # direction from the head centre, mirrored in x
@@ -897,8 +902,6 @@ def hatch_prism(shrink=0.0, y0=-60.0, y1=8.0):
 
 def ledge():
     """Rim inside the shell that the cover rests against."""
-    band = diff(cavity_solid(),
-                ell(tuple(r - LEDGE_T for r in CAV_R), TORSO_C))
     # Prizmalar y'de sonuna kadar uzanıyor, arka yarıyı y=0 düzlemi ayırıyor.
     # Uçları şeridin içinde bitirmek teğet kesişim ve manifold olmayan kenar
     # bırakıyordu; y=0'da şerit düzleme dik geçtiği için orada sorun çıkmıyor.
@@ -906,7 +909,17 @@ def ledge():
     inner = xz_prism(HATCH_W - 2 * LEDGE_W, HATCH_H - 2 * LEDGE_W, 4.0, -70, 70)
     outer.apply_translation((0, 0, HATCH_Z))
     inner.apply_translation((0, 0, HATCH_Z))
-    return inter(band, diff(outer, inner), half_space(1, -1, 0.0))
+
+    # Bileziği tam kavite yüzeyinde bitirmek, dış yüzünü gövdenin iç yüzüyle
+    # birebir çakıştırıyordu: birleşim çakışan yüzeyde üst üste binmiş kabuk
+    # bırakıyor, dilimleyici de kesiti kapatamıyordu (ölçüldü: bu adım tek
+    # başına bozuk katman sayısını 1'den 69'a çıkarıyordu, oysa bileziğin
+    # kendisi tek başına tertemiz). Kaviteyi büyütüp kesince bilezik duvarın
+    # içine giriyor, birleşim gerçek bir hacim kesişmesi oluyor. Aynı çözüm
+    # speaker_mount()'ta da var.
+    buried = ell(tuple(r + 1.2 for r in CAV_R), TORSO_C)
+    region = inter(buried, diff(outer, inner), half_space(1, -1, 0.0))
+    return diff(region, ell(tuple(r - LEDGE_T for r in CAV_R), TORSO_C))
 
 
 def bosses():
@@ -915,12 +928,18 @@ def bosses():
     Eskiden kaviteyi baştan başa geçiyorlardı; alt boss tam kartın oturduğu
     hacmi dolduruyordu. M3 vidaya kapak eti + 12 mm diş fazlasıyla yetiyor.
     """
+    # Silindiri kavitenin tam kendisiyle kesmek, bossun dış yüzünü gövdenin iç
+    # yüzüyle birebir çakıştırıyordu; boolean çakışan yüzeyde üst üste binmiş
+    # kabuk bırakıp ağı manifold olmaktan çıkarıyordu. Birazcık büyütülmüş bir
+    # kavite ile kesince boss duvarın içine giriyor, yani birleşim gerçek bir
+    # hacim kesişmesi oluyor ve çakışan yüzey kalmıyor.
+    clip = ell(tuple(r + 1.2 for r in CAV_R), TORSO_C)
     parts = []
     for z in BOSS_Z:
         cyl = creation.cylinder(radius=BOSS_R,
                                 segment=[(0, cavity_back_y(z) + BOSS_DEPTH, z), (0, -60, z)],
                                 sections=48)
-        parts.append(inter(cyl, cavity_solid()))
+        parts.append(inter(cyl, clip))
     return union(*parts)
 
 
@@ -1112,8 +1131,9 @@ def main():
         # STL stores float32: round to it here, so the slivers that rounding
         # can create are cleaned up before the file is written, not after.
         mesh.vertices = mesh.vertices.astype(np.float32).astype(np.float64)
-        mesh.merge_vertices()
-        mesh = drop_slivers(mesh)
+        mesh = drop_slivers(agtemiz.temizle(mesh))
+        mesh.vertices = mesh.vertices.astype(np.float32).astype(np.float64)
+        mesh = agtemiz.snap(mesh)
         trimesh.repair.fix_normals(mesh)
 
         path = os.path.join(args.outdir, name + ".stl")
@@ -1123,6 +1143,12 @@ def main():
         if not (check.is_watertight and check.is_winding_consistent
                 and len(check.split(only_watertight=False)) == 1 and check.volume > 0):
             raise SystemExit("%s is not a clean printable solid" % path)
+        # Dilimleyici konturu kapatabiliyor mu: kapatamadigi katmani atiyor ve
+        # nesneyi plakadan dusuruyor, yani bu denetim gecmeden dosya ise yaramaz.
+        bad = agtemiz.open_contour_layers(check)
+        if bad:
+            raise SystemExit("%s: %d katmanda kontur kapanmiyor, ilki z=%.2f"
+                             % (path, len(bad), bad[0]))
         report(name, check)
 
     # Plaka mutlak mm, kapak açıklığı ise figürle birlikte küçülüyor: küçük
