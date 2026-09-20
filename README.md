@@ -72,6 +72,32 @@ python3 dogrula.py                       # elektronik gerçekten sığıyor mu
 | `stl/tepecan_solid.stl` | İçi dolu vitrin figürü (elektronik yoksa bunu bas) |
 | `stl/tepesu.stl` | Tepesu: elektroniksiz ikiz, kaldırdığı elinde QR kartı klipsi |
 
+### Oturan Tepesu
+
+Aynı figürün oturur duruşlu, tüylü (fuzzy) basılan sürümü. Belden yukarısı
+ayakta durana birebir aynı; bacaklar öne uzanıyor, botlar dikine duruyor,
+sol el yere dayanıyor.
+
+```bash
+cd govde
+python3 oturan.py                        # 170 mm, stl_oturan/ klasörünü üretir
+python3 oturan.py --height 200
+python3 plakalar_oturan.py               # 3mf/oturan_plaka*.3mf
+python3 oturan_onizleme.py               # preview/tepesu_oturan.png
+```
+
+Dört parça: `tepesu_govde` (kalça, bacaklar, botlar ve sol kol tek parça),
+`tepesu_kafa`, `tepesu_kol_sag_on`, `tepesu_kol_sag_arka`.
+
+Taban düzlemi kalça küresinin en altından değil, 8 birim yukarısından
+geçiyor: teğet kesimde ilk milimetrelerde katman başına 0.7 mm yanal kaçış
+çıkıyor ve duvar havada başlıyor. Yukarıdan kesince kaçış 0.19 mm'ye
+düşüyor, gövde desteksiz basılıyor ve popo yayvanlaştığı için figür masada
+devrilmiyor.
+
+Geçme payları tüy kalınlığı kadar büyütülmüş — ayrıntısı ve dilimleyici
+ayarları [`dokuman/oturan_tepesu.md`](dokuman/oturan_tepesu.md) içinde.
+
 Figür tasarım biriminde modellenip export'ta ölçekleniyor; cidar kalınlığı,
 vida delikleri ve kapak boşluğu gibi mutlak kalması gereken ölçüler önce bu
 ölçeğe bölünüyor — böylece M3 vida her boyda M3 kalıyor.

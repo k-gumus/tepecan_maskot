@@ -185,7 +185,7 @@ def placed(mesh, transform):
     return m
 
 
-def hand(wrist, forward, palm_normal, thumb_side=-1, span=5.4, finger_r=2.2):
+def hand(wrist, forward, palm_normal, thumb_side=-1, span=5.4, finger_r=2.5):
     """Round mitten hand with fingers on it.
 
     The palm is the ball of the original design; four two-segment fingers with
@@ -194,6 +194,7 @@ def hand(wrist, forward, palm_normal, thumb_side=-1, span=5.4, finger_r=2.2):
     placed on the wrist.
     """
     parts = [ell((9.0, 8.5, 8.5), (0, 0, 5.5))]
+    knuckles = []
 
     for xi in (-1.5, -0.5, 0.5, 1.5):
         long = abs(xi) < 1.0                      # middle fingers a little longer
@@ -209,6 +210,16 @@ def hand(wrist, forward, palm_normal, thumb_side=-1, span=5.4, finger_r=2.2):
         p1 = p0 + l1 * splay([0.0, np.sin(a1), np.cos(a1)])
         p2 = p1 + l2 * splay([0.0, np.sin(a2), np.cos(a2)])
         parts.append(limb([p0, p1, p2], [finger_r, finger_r * 0.93, finger_r * 0.84]))
+        knuckles.append((p0, p1))
+
+    # Parmak aralarına perde. Perdesiz her parmak ilk boğumundan itibaren
+    # kendi başına bir ada: basarken avucun kubbesinde havada başlayan ayrı
+    # bir kule oluyor, elde de 6.6 mm'lik çubuk olarak kalıp kırılıyor
+    # (kullanıcıda üç parmak çıktı, ikisi koptu). Perde ilk boğuma kadar
+    # dolduruyor; uçlar ayrı kalıyor, el yine el gibi duruyor.
+    for (a0, a1), (b0, b1) in zip(knuckles, knuckles[1:]):
+        pts = [ball(finger_r * 0.55, p, 3).vertices for p in (a0, a1, b0, b1)]
+        parts.append(trimesh.Trimesh(vertices=np.vstack(pts)).convex_hull)
 
     t0 = np.array([thumb_side * 6.0, 2.5, 4.0])
     td = unit([thumb_side * 0.72, 0.36, 0.59])
@@ -433,7 +444,7 @@ BTN_FIT = 0.25                  # sap ile delik arasındaki boşluk
 
 def configure(height_mm=DEFAULT_HEIGHT):
     """Set the design-unit values of everything that must stay absolute in mm."""
-    global SCALE, WALL, CAV_R, LID_GAP, LEDGE_T
+    global SCALE, WALL, CAV_R, LID_GAP, LID_SINK, LEDGE_T
     global SCREW_PILOT, SCREW_FREE, SCREW_HEAD, GROOVE
     global POST_R, POST_PILOT, POST_DEPTH, BOSS_DEPTH, BOARD_HOLE_X, BOARD_HOLE_Y
     global PLATE_HOLE_X, PLATE_HOLE_Y, PLATE_T, PLATE_STAND, PLATE_R, BOARD_OFFSET_Y
@@ -445,6 +456,7 @@ def configure(height_mm=DEFAULT_HEIGHT):
     WALL = 3.0 / SCALE
     CAV_R = tuple(r - WALL for r in TORSO_R)
     LID_GAP = 0.3 / SCALE
+    LID_SINK = 0.6 / SCALE
     LEDGE_T = 2.5 / SCALE
     SCREW_PILOT = 1.35 / SCALE
     SCREW_FREE = 1.75 / SCALE
@@ -900,6 +912,34 @@ def hatch_prism(shrink=0.0, y0=-60.0, y1=8.0):
     return p
 
 
+def lid_seat():
+    """Kapağın kapladığı hacim. Gövdeye ne eklenirse eklensin bundan kesiliyor.
+
+    Kavitenin içine bakan her parça (bilezik, vida bossları, hoparlör adası)
+    manifold kalabilmek için duvarın 1.2 birim içine gömülü kuruluyor - kendi
+    yüzeyini gövdenin iç yüzüyle birebir çakıştırmamak için. Ama açıklığın
+    içinde kalan o gömülü kısım kapağın oturacağı yere denk geliyordu: kapak
+    açıklığa girmiyor, bileziğin üstünde 1.8 mm dışarıda asılı kalıyordu ve
+    sırt kapanmıyordu (ölçüldü: kapak-gövde çakışması 2287 mm3).
+
+    Tek tek düzeltmek yerine kapağın hacmini en sonda hepsinden kesiyoruz.
+    Kesicinin üç sınırının da gövdenin hiçbir yüzeyiyle çakışmaması şart;
+    denendi, çakışan her sınır kabuğu paramparça ediyor:
+
+      dış sınır  torso_skin(2.0)  - gövde yüzeyinin dışında. Burada `buried`
+                 kullanmak bileziğin kendi dış yüzeyine denk geliyor ve
+                 kabuk 80 parçaya, bozuk katman 0'dan 168'e çıkıyordu.
+      iç sınır   CAV_R - LID_SINK - kavite yüzeyinin LID_SINK kadar altında,
+                 yani gövdenin iç yüzüyle çakışmıyor.
+      yan duvar  açıklık prizması.
+
+    LID_SINK kadarı kapağa kalınlık olarak geri veriliyor (build_lid), yani
+    kapak bileziğe tam oturuyor ve dış yüzü gövdeyle aynı hizada kalıyor.
+    """
+    return inter(hatch_prism(0.0, -60.0, 8.0),
+                 diff(torso_skin(2.0), ell(tuple(r - LID_SINK for r in CAV_R), TORSO_C)))
+
+
 def ledge():
     """Rim inside the shell that the cover rests against."""
     # Prizmalar y'de sonuna kadar uzanıyor, arka yarıyı y=0 düzlemi ayırıyor.
@@ -919,6 +959,8 @@ def ledge():
     # speaker_mount()'ta da var.
     buried = ell(tuple(r + 1.2 for r in CAV_R), TORSO_C)
     region = inter(buried, diff(outer, inner), half_space(1, -1, 0.0))
+    # Bileziğin kapağın yerini işgal eden kısmı burada değil, lid_seat() ile
+    # gövdenin tamamından kesiliyor - bkz. oradaki açıklama.
     return diff(region, ell(tuple(r - LEDGE_T for r in CAV_R), TORSO_C))
 
 
@@ -1011,7 +1053,9 @@ def button_cap():
 
 
 def build_lid(vents=True):
-    shell = diff(torso_solid(), cavity_solid())
+    # Kapağın iç yüzü kavite yüzeyinin LID_SINK kadar altında: lid_seat()
+    # gövdeden tam bu hacmi kestiği için kapak bileziğe birebir oturuyor.
+    shell = diff(torso_solid(), ell(tuple(r - LID_SINK for r in CAV_R), TORSO_C))
     lid = inter(shell, hatch_prism(shrink=2 * LID_GAP, y0=-60.0, y1=-6.0))
 
     # raised border frame on the outer face
@@ -1083,7 +1127,8 @@ def build_all(with_text=True, vents=True, base_trim=2.0):
     posts, post_holes = board_posts()
     body = diff(outer, cavity_solid(), hatch_prism())
     body = union(body, ledge(), bosses(), speaker_mount(), posts)
-    body = diff(body, screw_pilots(), cable_slot(), speaker_grille(), post_holes)
+    body = diff(body, lid_seat(), screw_pilots(), cable_slot(),
+                speaker_grille(), post_holes)
     body = cut_below(body, base_trim)
 
     return (drop_slivers(solid), drop_slivers(body),

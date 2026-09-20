@@ -34,7 +34,7 @@ PEG_H = 7.0         # bacak pimlerinin boyu
 PEG_BACK = 3.5      # pim yarıçapı = bacak yarıçapı - bu
 SINK = 4.0          # mil ve pimlerin ana parçanın içine gömüldüğü boy
 GAP_ARM = 0.25      # mm, kolun omuz yüzeyinden kaçışı (yapıştırıcı payı)
-ARM_SPLIT = 0.45    # kolu ikiye bölen düzlemin y aralığındaki yeri
+ARM_SPLIT = 0.54    # bölme düzleminin, avuç normali yönündeki aralıktaki yeri
 
 
 def fit():
@@ -46,6 +46,39 @@ def cyl(r, z0, z1, center_xy=(0.0, 0.0), sections=96):
     m = trimesh.creation.cylinder(radius=r, height=z1 - z0, sections=sections)
     m.apply_translation((center_xy[0], center_xy[1], (z0 + z1) / 2.0))
     return m
+
+
+def palm_normal(triple):
+    """Avuç düzleminin normali: hand()'in kurduğu yerel çerçevenin Y ekseni."""
+    _, elbow, wrist = (np.asarray(p, dtype=float) for p in triple)
+    f = T.unit(wrist - elbow)
+    up = np.array([0.0, 1.0, 0.0])
+    return T.unit(up - f * np.dot(up, f))
+
+
+def split_arm(arm, triple, frac=ARM_SPLIT):
+    """Kolu AVUÇ DÜZLEMİNDEN ikiye böl, her yarımı kesik yüzüne yatır.
+
+    Önceden bölme düzlemi y eksenine dikti. Elin ince ekseni ise avuç normali
+    ve o, y'den 26 derece sapık: sonuçta parmaklar tablaya yatmıyor, avucun
+    kubbesi üstünde ayrı ayrı dikilen kuleler oluyordu. Basarken her biri
+    havada başlıyor, elde de 6.6 mm'lik çubuk olarak kalıp kopuyordu
+    (kullanıcıda üç parmak çıktı, ikisi koptu).
+
+    Avuç normalini +y'ye döndürüp oradan bölünce parmaklar yarım silindir
+    olarak yatıyor. Ölçüldü (sol kol, 230 mm): havada başlayan ada 47.9 -> 0.3
+    mm2, parça yüksekliği 27.5 -> 17.5 mm, tabla teması 800 -> 1228 mm2.
+
+    0.54, dört oranın taranmasıyla seçildi; avuç kesiti tam ortada değil çünkü
+    parmaklar ilerledikçe avuç düzleminden dışarı kıvrılıyor.
+    """
+    m = trimesh.geometry.align_vectors(palm_normal(triple), [0, 1, 0])
+    a = arm.copy()
+    a.apply_transform(m)
+    y0, y1 = a.bounds[:, 1]
+    cut = y0 + (y1 - y0) * frac
+    return {"_on": rot(biggest(inter(a, half_space(1, +1, cut))), +90, (1, 0, 0)),
+            "_arka": rot(biggest(inter(a, half_space(1, -1, cut))), -90, (1, 0, 0))}
 
 
 def leg_axis(z):
@@ -184,7 +217,8 @@ def build_parts(with_text=True):
     posts, post_holes = T.board_posts()
     body = diff(figure, T.cavity_solid(), T.hatch_prism())
     body = union(body, T.ledge(), T.bosses(), T.speaker_mount(), posts)
-    body = diff(body, T.screw_pilots(), T.cable_slot(), T.speaker_grille(), post_holes)
+    body = diff(body, T.lid_seat(), T.screw_pilots(), T.cable_slot(),
+                T.speaker_grille(), post_holes)
     body = T.cut_below(body, 2.0)
 
     f = fit()
@@ -200,11 +234,8 @@ def build_parts(with_text=True):
     for name, triple, side in (("kol_sol", T.ARM_LEFT, -1), ("kol_sag", T.ARM_RIGHT, +1)):
         env = arm_envelope(triple, side, with_text)
         arm = biggest(diff(env, torso_hull(GAP_ARM / T.SCALE)))
-        y0, y1 = arm.bounds[:, 1]
-        cut = y0 + (y1 - y0) * ARM_SPLIT
-        # kesik yüz aşağı baksın diye her yarım X'te ters yöne çevriliyor
-        out[name + "_arka"] = rot(biggest(inter(arm, half_space(1, -1, cut))), -90, (1, 0, 0))
-        out[name + "_on"] = rot(biggest(inter(arm, half_space(1, +1, cut))), +90, (1, 0, 0))
+        for suffix, half in split_arm(arm, triple).items():
+            out[name + suffix] = half
 
     # --- kafa: boyundan düz kesim, gövdede geçme mili ---
     head = biggest(inter(body, half_space(2, +1, NECK_Z)))
