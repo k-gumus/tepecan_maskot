@@ -47,7 +47,7 @@ Cevap tamamlanmadan konuşmaya başlar: model ilk cümleyi bitirir bitirmez o
 cümle seslendirilir, kalanı arka planda üretilir.
 
 <p align="center">
-  <img src="dokuman/devre_semasi.png" width="100%">
+  <img src="dokuman/kablolama.png" width="100%">
 </p>
 
 ---
