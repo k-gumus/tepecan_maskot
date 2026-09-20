@@ -38,7 +38,8 @@
 /* Uyandırma kelimesi varsayılan olarak KAPALI. Açmak için:
  *   1. Burayı 1 yap.
  *   2. main/idf_component.yml içindeki üç bağımlılığın yorumunu kaldır.
- *   3. Eğitilmiş modeli "model" bölmesine yükle (bkz. README).
+ *   3. main/CMakeLists.txt'teki REQUIRES satırına "spiffs" ekle.
+ *   4. Eğitilmiş modeli "model" bölmesine yükle (bkz. README).
  *
  * Kapalı geliyor çünkü model dosyası olmadan zaten çalışmıyor, ve açıkken
  * derleme kayıt sunucusundan üç bileşen indirmeye çalışıyor. Kapalıyken

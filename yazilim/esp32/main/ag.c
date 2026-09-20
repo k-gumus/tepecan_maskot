@@ -11,7 +11,6 @@
 #include "esp_heap_caps.h"
 #include "nvs_flash.h"
 #include "nvs.h"
-#include "cJSON.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/event_groups.h"
 
@@ -156,16 +155,145 @@ static char *gonder(const char *yol, const char *tur,
     return cikti;
 }
 
+/* ----------------------------------------------------------------- JSON
+ * Eskiden cJSON kullanıyorduk, yani ESP-IDF'in "json" bileşenine. O bileşen
+ * v6'da çekirdekten çıkarıldı ve kurulum "Failed to resolve component 'json'"
+ * diye çöküyordu. İhtiyacımız iki şeyle sınırlı -- üst düzey bir metin alanı
+ * okumak ve {"text": "..."} kurmak -- o yüzden ikisi burada. Bağımlılık
+ * kalmadığı için hangi IDF sürümünde olursa olsun derleniyor.
+ */
+static size_t utf8_yaz(char *hedef, unsigned kod)
+{
+    if (kod < 0x80)   { hedef[0] = (char)kod; return 1; }
+    if (kod < 0x800)  { hedef[0] = (char)(0xC0 | (kod >> 6));
+                        hedef[1] = (char)(0x80 | (kod & 0x3F)); return 2; }
+    if (kod < 0x10000){ hedef[0] = (char)(0xE0 | (kod >> 12));
+                        hedef[1] = (char)(0x80 | ((kod >> 6) & 0x3F));
+                        hedef[2] = (char)(0x80 | (kod & 0x3F)); return 3; }
+    hedef[0] = (char)(0xF0 | (kod >> 18));
+    hedef[1] = (char)(0x80 | ((kod >> 12) & 0x3F));
+    hedef[2] = (char)(0x80 | ((kod >> 6) & 0x3F));
+    hedef[3] = (char)(0x80 | (kod & 0x3F));
+    return 4;
+}
+
+static unsigned onalti4(const char *s)
+{
+    unsigned v = 0;
+    for (int i = 0; i < 4; i++) {
+        char c = s[i];
+        v <<= 4;
+        if      (c >= '0' && c <= '9') v |= (unsigned)(c - '0');
+        else if (c >= 'a' && c <= 'f') v |= (unsigned)(c - 'a' + 10);
+        else if (c >= 'A' && c <= 'F') v |= (unsigned)(c - 'A' + 10);
+        else return 0xFFFFFFFFu;
+    }
+    return v;
+}
+
+/* Açılış tırnağından sonrasını alır, kapanış tırnağının ardını döndürür. */
+static const char *dizge_atla(const char *p)
+{
+    while (*p) {
+        if (*p == '\\' && p[1]) { p += 2; continue; }
+        if (*p == '"') return p + 1;
+        p++;
+    }
+    return p;
+}
+
+/* Açılış tırnağından sonrasını alır, kaçışları çözüp yeni tampon döndürür.
+ * Çözülen metin kaynaktan uzun olamaz: en uzun kaçış (\uXXXX, 6 karakter)
+ * en çok 4 bayt üretiyor. */
+static char *dizge_coz(const char *p)
+{
+    char *cikti = malloc(strlen(p) + 1);
+    if (!cikti) return NULL;
+    size_t n = 0;
+    while (*p && *p != '"') {
+        if (*p != '\\') { cikti[n++] = *p++; continue; }
+        p++;
+        switch (*p) {
+        case 'n': cikti[n++] = '\n'; p++; break;
+        case 't': cikti[n++] = '\t'; p++; break;
+        case 'r': cikti[n++] = '\r'; p++; break;
+        case 'b': cikti[n++] = '\b'; p++; break;
+        case 'f': cikti[n++] = '\f'; p++; break;
+        case 'u': {
+            unsigned kod = onalti4(p + 1);
+            if (kod == 0xFFFFFFFFu) { free(cikti); return NULL; }
+            p += 5;
+            if (kod >= 0xD800 && kod <= 0xDBFF && p[0] == '\\' && p[1] == 'u') {
+                unsigned alt = onalti4(p + 2);
+                if (alt >= 0xDC00 && alt <= 0xDFFF) {
+                    kod = 0x10000u + ((kod - 0xD800u) << 10) + (alt - 0xDC00u);
+                    p += 6;
+                }
+            }
+            n += utf8_yaz(cikti + n, kod);
+            break;
+        }
+        case '\0': free(cikti); return NULL;
+        default: cikti[n++] = *p++; break;          /* \" \\ \/ */
+        }
+    }
+    cikti[n] = '\0';
+    return cikti;
+}
+
+/* Üst düzey bir metin alanını çek. Değerlerin içindeki tırnaklara takılmamak
+ * için dizgeler bütün hâlde atlanıyor. */
+static char *json_metin_alani(const char *json, const char *ad)
+{
+    size_t adboy = strlen(ad);
+    const char *p = json;
+    while (*p) {
+        if (*p != '"') { p++; continue; }
+        const char *anahtar = p + 1;
+        const char *son = dizge_atla(anahtar);       /* kapanış tırnağının ardı */
+        const char *q = son;
+        while (*q == ' ' || *q == '\t' || *q == '\n' || *q == '\r') q++;
+        if (*q == ':') {
+            bool esles = (size_t)(son - 1 - anahtar) == adboy &&
+                         strncmp(anahtar, ad, adboy) == 0;
+            q++;
+            while (*q == ' ' || *q == '\t' || *q == '\n' || *q == '\r') q++;
+            if (esles) return (*q == '"') ? dizge_coz(q + 1) : NULL;
+            if (*q == '"') { p = dizge_atla(q + 1); continue; }
+        }
+        p = son;
+    }
+    return NULL;
+}
+
+/* {"ad":"deger"} kurar. Her karakter en çok 6 karaktere (\u00XX) açılıyor. */
+static char *json_metin_govdesi(const char *ad, const char *deger)
+{
+    size_t kapasite = strlen(ad) + strlen(deger) * 6 + 16;
+    char *cikti = malloc(kapasite);
+    if (!cikti) return NULL;
+    size_t n = (size_t)snprintf(cikti, kapasite, "{\"%s\":\"", ad);
+    for (const unsigned char *s = (const unsigned char *)deger; *s; s++) {
+        if      (*s == '"' || *s == '\\') { cikti[n++] = '\\'; cikti[n++] = (char)*s; }
+        else if (*s == '\n') { cikti[n++] = '\\'; cikti[n++] = 'n'; }
+        else if (*s == '\r') { cikti[n++] = '\\'; cikti[n++] = 'r'; }
+        else if (*s == '\t') { cikti[n++] = '\\'; cikti[n++] = 't'; }
+        else if (*s < 0x20)  { n += (size_t)snprintf(cikti + n, kapasite - n,
+                                                     "\\u%04x", (unsigned)*s); }
+        else cikti[n++] = (char)*s;
+    }
+    cikti[n++] = '"';
+    cikti[n++] = '}';
+    cikti[n] = '\0';
+    return cikti;
+}
+
 /* JSON'dan tek bir metin alanı çek. */
 static char *alan(char *json, const char *ad)
 {
     if (!json) return NULL;
-    cJSON *k = cJSON_Parse(json);
+    char *sonuc = json_metin_alani(json, ad);
     free(json);
-    if (!k) return NULL;
-    cJSON *d = cJSON_GetObjectItem(k, ad);
-    char *sonuc = (cJSON_IsString(d) && d->valuestring) ? strdup(d->valuestring) : NULL;
-    cJSON_Delete(k);
     return sonuc;
 }
 
@@ -178,10 +306,8 @@ char *beyin_stt(const uint8_t *wav, size_t uzunluk)
 
 char *beyin_chat(const char *soru)
 {
-    cJSON *k = cJSON_CreateObject();
-    cJSON_AddStringToObject(k, "text", soru);
-    char *govde = cJSON_PrintUnformatted(k);
-    cJSON_Delete(k);
+    char *govde = json_metin_govdesi("text", soru);
+    if (!govde) return NULL;
 
     char *yanit = gonder("/chat", "application/json", govde, strlen(govde), 8192, NULL);
     free(govde);
@@ -190,10 +316,8 @@ char *beyin_chat(const char *soru)
 
 uint8_t *beyin_tts(const char *metin, size_t *uzunluk)
 {
-    cJSON *k = cJSON_CreateObject();
-    cJSON_AddStringToObject(k, "text", metin);
-    char *govde = cJSON_PrintUnformatted(k);
-    cJSON_Delete(k);
+    char *govde = json_metin_govdesi("text", metin);
+    if (!govde) { *uzunluk = 0; return NULL; }
 
     /* Piper WAV'ı uzun cümlelerde birkaç yüz KB olabiliyor; PSRAM'de duruyor. */
     const size_t sinir = 1024 * 1024;
