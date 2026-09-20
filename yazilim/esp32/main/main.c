@@ -19,7 +19,9 @@
 #include "driver/gpio.h"
 #include "esp_log.h"
 #include "esp_heap_caps.h"
+#if UYANDIRMA_ETKIN
 #include "esp_spiffs.h"
+#endif
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
@@ -199,6 +201,10 @@ static void tur(void)
 }
 
 /* ----------------------------------------------------------------- giriş */
+/* SPIFFS'te yalnız uyandırma modeli duruyor. Kelime kapalıyken hiç bağlamaya
+ * gerek yok; böylece derleme "spiffs" bileşenine de bağımlı olmuyor. Kelimeyi
+ * açarken main/CMakeLists.txt'teki REQUIRES satırına "spiffs" eklemeyi unutma. */
+#if UYANDIRMA_ETKIN
 static void spiffs_bagla(void)
 {
     esp_vfs_spiffs_conf_t c = {
@@ -210,6 +216,9 @@ static void spiffs_bagla(void)
     esp_err_t r = esp_vfs_spiffs_register(&c);
     if (r != ESP_OK) ESP_LOGW(ETIKET, "SPIFFS bağlanamadı: %s", esp_err_to_name(r));
 }
+#else
+static void spiffs_bagla(void) { }
+#endif
 
 void app_main(void)
 {
